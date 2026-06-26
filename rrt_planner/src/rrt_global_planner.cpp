@@ -23,6 +23,9 @@ void RRTGlobalPlanner::configure(
   global_frame_ = costmap_ros_->getGlobalFrameID();
   logger_ = node_->get_logger();
 
+  marker_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>(
+      "rrt_tree", rclcpp::SystemDefaultsQoS());
+
   nav2_util::declare_parameter_if_not_declared(node_, name_ + ".step_size",
                                                rclcpp::ParameterValue(0.3));
   nav2_util::declare_parameter_if_not_declared(node_, name_ + ".goal_bias",
@@ -123,6 +126,10 @@ RRTGlobalPlanner::createPlan(const geometry_msgs::msg::PoseStamped &start,
 
   RCLCPP_INFO(logger_, "RRT planned a path: %zu poses (tree: %zu, iters: %zu)",
               path.poses.size(), result.tree_size, result.iterations);
+
+  auto markers = createTreeVisualization(result, path.header);
+  marker_pub_->publish(markers);
+
   return path;
 }
 

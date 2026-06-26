@@ -11,6 +11,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "tf2_ros/buffer.h"
+#include "visualization_msgs/msg/marker_array.hpp"
 
 #include "rrt_core/types.hpp"
 
@@ -39,6 +40,9 @@ private:
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
   std::string global_frame_;
   std::string name_;
+
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
+      marker_pub_;
 
   rrt_core::RRTParams params_;
   unsigned char lethal_cost_{nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE};

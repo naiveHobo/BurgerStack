@@ -43,7 +43,7 @@ RRTPlannerNode::RRTPlannerNode() : rclcpp::Node("rrt_planner_node") {
       std::bind(&RRTPlannerNode::onGoal, this, std::placeholders::_1));
 
   path_pub_ = create_publisher<nav_msgs::msg::Path>("rrt_path", 10);
-  tree_pub_ =
+  markers_pub_ =
       create_publisher<visualization_msgs::msg::MarkerArray>("rrt_tree", 10);
 
   RCLCPP_INFO(get_logger(), "RRT Planner node ready!");
@@ -81,7 +81,9 @@ void RRTPlannerNode::onGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   }
 
   publishPath(result, *msg);
-  publishTree(result);
+
+  auto markers = createTreeVisualization(result, msg->header);
+  markers_pub_->publish(markers);
 }
 
 void RRTPlannerNode::publishPath(const rrt_core::RRTResult &result,
@@ -105,59 +107,6 @@ void RRTPlannerNode::publishPath(const rrt_core::RRTResult &result,
     path.poses.push_back(pose);
   }
   path_pub_->publish(path);
-}
-
-void RRTPlannerNode::publishTree(const rrt_core::RRTResult &result) {
-  visualization_msgs::msg::MarkerArray msg;
-
-  visualization_msgs::msg::Marker edges;
-  edges.header.frame_id = global_frame_;
-  edges.header.stamp = get_clock()->now();
-  edges.ns = "tree";
-  edges.id = 0;
-  edges.type = visualization_msgs::msg::Marker::LINE_LIST;
-  edges.action = visualization_msgs::msg::Marker::ADD;
-  edges.scale.x = 0.01;
-  edges.color.b = 1.0;
-  edges.color.a = 0.6;
-  edges.pose.orientation.w = 1.0;
-
-  for (size_t i = 0; i < result.tree_nodes.size(); ++i) {
-    const int parent = result.tree_parents[i];
-    if (parent < 0) {
-      continue;
-    }
-    geometry_msgs::msg::Point a;
-    a.x = result.tree_nodes[i].x;
-    a.y = result.tree_nodes[i].y;
-    geometry_msgs::msg::Point b;
-    b.x = result.tree_nodes[static_cast<std::size_t>(parent)].x;
-    b.y = result.tree_nodes[static_cast<std::size_t>(parent)].y;
-    edges.points.push_back(a);
-    edges.points.push_back(b);
-  }
-
-  msg.markers.push_back(edges);
-
-  visualization_msgs::msg::Marker route;
-  route.header = edges.header;
-  route.ns = "path";
-  route.id = 1;
-  route.type = visualization_msgs::msg::Marker::LINE_STRIP;
-  route.action = visualization_msgs::msg::Marker::ADD;
-  route.scale.x = 0.05;
-  route.color.b = 1.0;
-  route.color.a = 1.0;
-  route.pose.orientation.w = 1.0;
-  for (const auto &p : result.path) {
-    geometry_msgs::msg::Point point;
-    point.x = p.x;
-    point.y = p.y;
-    route.points.push_back(point);
-  }
-  msg.markers.push_back(route);
-
-  tree_pub_->publish(msg);
 }
 
 } // namespace rrt_planner

@@ -24,7 +24,6 @@ private:
   void onGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void publishPath(const rrt_core::RRTResult &result,
                    const geometry_msgs::msg::PoseStamped &goal);
-  void publishTree(const rrt_core::RRTResult &result);
 
 private:
   std::string global_frame_;
@@ -44,7 +43,8 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
 
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
-  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr tree_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
+      markers_pub_;
 };
 
 } // namespace rrt_planner

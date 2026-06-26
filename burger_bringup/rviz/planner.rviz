@@ -17,7 +17,7 @@ Visualization Manager:
       Plane Cell Count: 20
     - Class: rviz_default_plugins/TF
       Name: TF
-      Enabled: false
+      Enabled: true
     - Class: rviz_default_plugins/Map
       Name: Map
       Enabled: true
