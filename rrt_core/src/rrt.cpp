@@ -156,6 +156,8 @@ RRTResult RRT::plan(const Point2D & start, const Point2D & goal) const
       path = smoothPath(path);
     }
 
+    path = densifyPath(path, params_.step_size);
+
     result.path = std::move(path);
     result.success = true;
   }
@@ -187,6 +189,34 @@ std::vector<Point2D> RRT::smoothPath(const std::vector<Point2D> & path) const
   }
 
   return smoothed_path;
+}
+
+std::vector<Point2D> RRT::densifyPath(const std::vector<Point2D> & path, double step_size) const
+{
+  std::vector<Point2D> densified_path;
+
+  if (path.empty()) {
+    return densified_path;
+  }
+
+  densified_path.push_back(path.front());
+
+  for (std::size_t i = 0; i < path.size() - 1; ++i) {
+    const Point2D & start = path[i];
+    const Point2D & end = path[i + 1];
+    const double segment_length = distance(start, end);
+    const int num_steps = static_cast<int>(std::floor(segment_length / step_size));
+
+    for (int step = 1; step <= num_steps; ++step) {
+      const double t = static_cast<double>(step) / num_steps;
+      Point2D intermediate_point{
+        start.x + t * (end.x - start.x), start.y + t * (end.y - start.y)};
+      densified_path.push_back(intermediate_point);
+    }
+    densified_path.push_back(end);
+  }
+
+  return densified_path;
 }
 
 }  // namespace rrt_core

@@ -32,6 +32,12 @@ private:
   /// @return A new path that is a smoothed version of the original path
   std::vector<Point2D> smoothPath(const std::vector<Point2D> & path) const;
 
+  /// @brief Densify the given path by adding intermediate points
+  /// @param path The original path to be densified
+  /// @param step_size The distance between consecutive points in the densified path
+  /// @return A new path that is a densified version of the original path
+  std::vector<Point2D> densifyPath(const std::vector<Point2D> & path, double step_size) const;
+
   RRTParams params_;
   std::shared_ptr<CollisionChecker> collision_checker_;
 };
