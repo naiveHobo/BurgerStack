@@ -13,6 +13,7 @@ find_package(ament_cmake REQUIRED)
 
 add_library(rrt_core SHARED
   src/rrt.cpp
+  src/spatial_hash.cpp
   src/grid_collision_checker.cpp)
 target_include_directories(rrt_core PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
