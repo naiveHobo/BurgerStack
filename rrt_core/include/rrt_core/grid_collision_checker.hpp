@@ -1,11 +1,11 @@
 #ifndef RRT_CORE__GRID_COLLISION_CHECKER_HPP_
 #define RRT_CORE__GRID_COLLISION_CHECKER_HPP_
 
-#include <cstdint>
-#include <vector>
-
 #include "rrt_core/collision_checker.hpp"
 #include "rrt_core/types.hpp"
+
+#include <cstdint>
+#include <vector>
 
 namespace rrt_core
 {
@@ -22,39 +22,23 @@ public:
   /// @param resolution The resolution of the grid (meters per cell)
   /// @param origin_x The x-coordinate of the grid's origin in world coordinates
   /// @param origin_y The y-coordinate of the grid's origin in world coordinates
-  /// @param occupied_threshold The threshold value above which a cell is considered occupied (default: 50)
+  /// @param occupied_threshold The threshold value above which a cell is considered occupied
+  /// (default: 50)
   /// @param unknown_is_free Whether to treat unknown cells as free (default: false)
-  /// @param inflation_radius The radius around occupied cells to consider as inflated (default: 0.0)
+  /// @param inflation_radius The radius around occupied cells to consider as inflated (default:
+  /// 0.0)
   GridCollisionChecker(
-    const std::vector<int8_t> & grid,
-    unsigned int width,
-    unsigned int height,
-    double resolution,
-    double origin_x,
-    double origin_y,
-    int occupied_threshold = 50,
-    bool unknown_is_free = false,
+    const std::vector<int8_t> & grid, unsigned int width, unsigned int height, double resolution,
+    double origin_x, double origin_y, int occupied_threshold = 50, bool unknown_is_free = false,
     double inflation_radius = 0.0);
 
-  double getMinX() const override
-  {
-    return origin_x_;
-  }
+  double getMinX() const override { return origin_x_; }
 
-  double getMaxX() const override
-  {
-    return origin_x_ + width_ * resolution_;
-  }
+  double getMaxX() const override { return origin_x_ + width_ * resolution_; }
 
-  double getMinY() const override
-  {
-    return origin_y_;
-  }
+  double getMinY() const override { return origin_y_; }
 
-  double getMaxY() const override
-  {
-    return origin_y_ + height_ * resolution_;
-  }
+  double getMaxY() const override { return origin_y_ + height_ * resolution_; }
 
   bool isFree(const Point2D & p) const override;
   bool isLineFree(const Point2D & a, const Point2D & b) const override;
@@ -63,7 +47,8 @@ public:
   /// @param world_point The point in world coordinates
   /// @param grid_x The x-coordinate in grid coordinates (output)
   /// @param grid_y The y-coordinate in grid coordinates (output)
-  /// @return True if the conversion was successful (the point is within the grid bounds), false otherwise
+  /// @return True if the conversion was successful (the point is within the grid bounds), false
+  /// otherwise
   bool worldToGrid(const Point2D & world_point, int & grid_x, int & grid_y) const;
 
   /// @brief Convert grid coordinates to a point in world coordinates
@@ -72,30 +57,15 @@ public:
   /// @return The corresponding point in world coordinates
   Point2D gridToWorld(int grid_x, int grid_y) const;
 
-  unsigned int width() const
-  {
-    return width_;
-  }
+  unsigned int width() const { return width_; }
 
-  unsigned int height() const
-  {
-    return height_;
-  }
+  unsigned int height() const { return height_; }
 
-  double resolution() const
-  {
-    return resolution_;
-  }
+  double resolution() const { return resolution_; }
 
-  double originX() const
-  {
-    return origin_x_;
-  }
+  double originX() const { return origin_x_; }
 
-  double originY() const
-  {
-    return origin_y_;
-  }
+  double originY() const { return origin_y_; }
 
 private:
   std::size_t index(int grid_x, int grid_y) const

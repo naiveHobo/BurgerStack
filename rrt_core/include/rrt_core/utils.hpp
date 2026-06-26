@@ -1,9 +1,9 @@
 #ifndef RRT_CORE__UTILS_HPP_
 #define RRT_CORE__UTILS_HPP_
 
-#include <cmath>
-
 #include "rrt_core/types.hpp"
+
+#include <cmath>
 
 namespace rrt_core
 {
@@ -17,6 +17,6 @@ inline double distance(const Point2D & a, const Point2D & b)
   return std::hypot(b.x - a.x, b.y - a.y);
 }
 
-}
+}  // namespace rrt_core
 
 #endif  // RRT_CORE__UTILS_HPP_

@@ -2,9 +2,9 @@
 #define RRT_CORE__TYPES_HPP_
 
 #include <cstddef>
-#include <vector>
-#include <utility>
 #include <cstdint>
+#include <utility>
+#include <vector>
 
 namespace rrt_core
 {
@@ -24,8 +24,8 @@ struct CellHash
   std::size_t operator()(const GridCell & cell) const
   {
     // Pack two 32-bit ints into a single 64-bit int,
-    const int64_t key = (static_cast<int64_t>(cell.first) <<
-      32) ^ static_cast<uint32_t>(cell.second);
+    const int64_t key =
+      (static_cast<int64_t>(cell.first) << 32) ^ static_cast<uint32_t>(cell.second);
     return std::hash<int64_t>()(key);
   }
 };

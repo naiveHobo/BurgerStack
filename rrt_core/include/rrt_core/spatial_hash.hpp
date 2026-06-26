@@ -1,10 +1,10 @@
 #ifndef RRT_CORE__SPATIAL_HASH_HPP_
 #define RRT_CORE__SPATIAL_HASH_HPP_
 
+#include "rrt_core/types.hpp"
+
 #include <unordered_map>
 #include <vector>
-
-#include "rrt_core/types.hpp"
 
 namespace rrt_core
 {
@@ -32,9 +32,7 @@ public:
   /// @return A vector of indices of points in the nodes vector that are within the specified
   ///         radius of the query point
   std::vector<int> withinRadius(
-    const Point2D & point,
-    double radius,
-    const std::vector<Point2D> & nodes) const;
+    const Point2D & point, double radius, const std::vector<Point2D> & nodes) const;
 
 private:
   /// @brief Get the grid cell corresponding to a given point in 2D space

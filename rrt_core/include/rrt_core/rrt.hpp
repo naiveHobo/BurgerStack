@@ -1,11 +1,11 @@
 #ifndef RRT_CORE__RRT_HPP_
 #define RRT_CORE__RRT_HPP_
 
-#include <vector>
-#include <memory>
-
 #include "rrt_core/collision_checker.hpp"
 #include "rrt_core/types.hpp"
+
+#include <memory>
+#include <vector>
 
 namespace rrt_core
 {

@@ -1,24 +1,23 @@
-#include <random>
-#include <vector>
-#include <memory>
-#include <cmath>
-#include <stdexcept>
-#include <iostream>
-#include <limits>
-#include <random>
-#include <algorithm>
-
 #include "rrt_core/rrt.hpp"
+
 #include "rrt_core/spatial_hash.hpp"
 #include "rrt_core/types.hpp"
 #include "rrt_core/utils.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <memory>
+#include <random>
+#include <stdexcept>
+#include <vector>
 
 namespace rrt_core
 {
 
 RRT::RRT(const RRTParams & params, const std::shared_ptr<CollisionChecker> & collision_checker)
-: params_(params),
-  collision_checker_(collision_checker)
+: params_(params), collision_checker_(collision_checker)
 {
   if (!collision_checker_) {
     throw std::invalid_argument("CollisionChecker pointer cannot be null");
@@ -42,10 +41,10 @@ RRTResult RRT::plan(const Point2D & start, const Point2D & goal) const
   }
 
   std::mt19937 rng(params_.seed);
-  std::uniform_real_distribution<double> sample_x(collision_checker_->getMinX(),
-    collision_checker_->getMaxX());
-  std::uniform_real_distribution<double> sample_y(collision_checker_->getMinY(),
-    collision_checker_->getMaxY());
+  std::uniform_real_distribution<double> sample_x(
+    collision_checker_->getMinX(), collision_checker_->getMaxX());
+  std::uniform_real_distribution<double> sample_y(
+    collision_checker_->getMinY(), collision_checker_->getMaxY());
   std::uniform_real_distribution<double> bias(0.0, 1.0);
 
   std::vector<Point2D> nodes;
@@ -64,8 +63,8 @@ RRTResult RRT::plan(const Point2D & start, const Point2D & goal) const
 
   for (; iterations < params_.max_iterations; ++iterations) {
     // Sample a random point or the goal point based on goal bias
-    const Point2D sample = (bias(rng) < params_.goal_bias) ?
-      goal : Point2D{sample_x(rng), sample_y(rng)};
+    const Point2D sample =
+      (bias(rng) < params_.goal_bias) ? goal : Point2D{sample_x(rng), sample_y(rng)};
 
     // Find the nearest node in the tree to the sampled point
     int nearest_index = spatial_hash.nearest(sample, nodes);
@@ -76,18 +75,17 @@ RRTResult RRT::plan(const Point2D & start, const Point2D & goal) const
 
     // Steer towards the sampled point by a maximum of step_size
     const double dist = distance(nearest_node, sample);
-    const Point2D new_node = (dist <= params_.step_size) ?
-      sample :
-      Point2D{
-      nearest_node.x + (params_.step_size * (sample.x - nearest_node.x) / dist),
-      nearest_node.y + (params_.step_size * (sample.y - nearest_node.y) / dist)
-    };
+    const Point2D new_node =
+      (dist <= params_.step_size)
+        ? sample
+        : Point2D{
+            nearest_node.x + (params_.step_size * (sample.x - nearest_node.x) / dist),
+            nearest_node.y + (params_.step_size * (sample.y - nearest_node.y) / dist)};
 
     // Check if the new node is free of obstacles
-    if (!collision_checker_->isFree(new_node) || !collision_checker_->isLineFree(
-        nearest_node,
-        new_node))
-    {
+    if (
+      !collision_checker_->isFree(new_node) ||
+      !collision_checker_->isLineFree(nearest_node, new_node)) {
       continue;
     }
 
@@ -130,9 +128,9 @@ RRTResult RRT::plan(const Point2D & start, const Point2D & goal) const
     }
 
     // Check if the goal was reached
-    if (distance(new_node, goal) <= params_.goal_tolerance &&
-      collision_checker_->isLineFree(new_node, goal))
-    {
+    if (
+      distance(new_node, goal) <= params_.goal_tolerance &&
+      collision_checker_->isLineFree(new_node, goal)) {
       goal_index = static_cast<int>(nodes.size());
       nodes.push_back(goal);
       parents.push_back(new_index);

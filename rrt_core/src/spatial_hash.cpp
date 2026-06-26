@@ -1,19 +1,21 @@
+#include "rrt_core/spatial_hash.hpp"
+
+#include "rrt_core/types.hpp"
+#include "rrt_core/utils.hpp"
+
+#include <algorithm>
 #include <cmath>
-#include <vector>
 #include <limits>
 #include <unordered_map>
 #include <utility>
-#include <algorithm>
-
-#include "rrt_core/spatial_hash.hpp"
-#include "rrt_core/types.hpp"
-#include "rrt_core/utils.hpp"
+#include <vector>
 
 namespace rrt_core
 {
 
-SpatialHash::SpatialHash(double cell_size)
-: cell_size_(cell_size) {}
+SpatialHash::SpatialHash(double cell_size) : cell_size_(cell_size)
+{
+}
 
 GridCell SpatialHash::getCell(const Point2D & point) const
 {
@@ -64,9 +66,7 @@ int SpatialHash::nearest(const Point2D & point, const std::vector<Point2D> & nod
 }
 
 std::vector<int> SpatialHash::withinRadius(
-  const Point2D & point,
-  double radius,
-  const std::vector<Point2D> & nodes) const
+  const Point2D & point, double radius, const std::vector<Point2D> & nodes) const
 {
   std::vector<int> indices;
   const auto grid_cell = getCell(point);

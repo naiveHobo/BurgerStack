@@ -1,22 +1,17 @@
-#include <vector>
-#include <cmath>
-
-#include "rrt_core/types.hpp"
-#include "rrt_core/collision_checker.hpp"
 #include "rrt_core/grid_collision_checker.hpp"
+
+#include "rrt_core/collision_checker.hpp"
+#include "rrt_core/types.hpp"
+
+#include <cmath>
+#include <vector>
 
 namespace rrt_core
 {
 
 GridCollisionChecker::GridCollisionChecker(
-  const std::vector<int8_t> & grid,
-  unsigned int width,
-  unsigned int height,
-  double resolution,
-  double origin_x,
-  double origin_y,
-  int occupied_threshold,
-  bool unknown_is_free,
+  const std::vector<int8_t> & grid, unsigned int width, unsigned int height, double resolution,
+  double origin_x, double origin_y, int occupied_threshold, bool unknown_is_free,
   double inflation_radius)
 : CollisionChecker(),
   width_(width),
@@ -75,9 +70,7 @@ GridCollisionChecker::GridCollisionChecker(
 }
 
 bool GridCollisionChecker::worldToGrid(
-  const Point2D & world_point,
-  int & grid_x,
-  int & grid_y) const
+  const Point2D & world_point, int & grid_x, int & grid_y) const
 {
   grid_x = static_cast<int>((world_point.x - origin_x_) / resolution_);
   grid_y = static_cast<int>((world_point.y - origin_y_) / resolution_);
@@ -87,10 +80,7 @@ bool GridCollisionChecker::worldToGrid(
 
 Point2D GridCollisionChecker::gridToWorld(int grid_x, int grid_y) const
 {
-  return {
-    origin_x_ + (grid_x + 0.5) * resolution_,
-    origin_y_ + (grid_y + 0.5) * resolution_
-  };
+  return {origin_x_ + (grid_x + 0.5) * resolution_, origin_y_ + (grid_y + 0.5) * resolution_};
 }
 
 bool GridCollisionChecker::isFree(const Point2D & point) const
