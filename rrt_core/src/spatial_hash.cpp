@@ -17,6 +17,11 @@ SpatialHash::SpatialHash(double cell_size) : cell_size_(cell_size)
 {
 }
 
+void SpatialHash::insert(const Point2D & point, int index)
+{
+  hash_table_[getCell(point)].push_back(index);
+}
+
 GridCell SpatialHash::getCell(const Point2D & point) const
 {
   int cell_x = static_cast<int>(std::floor(point.x / cell_size_));
