@@ -1,0 +1,11 @@
+<library path="rrt_global_planner">
+  <class
+    name="rrt_planner/RRTGlobalPlanner"
+    type="rrt_planner::RRTGlobalPlanner"
+    base_class_type="nav2_core::GlobalPlanner">
+    <description>
+      Rapidly-exploring Random Tree (RRT / RRT*) global planner.
+      Plans over the Nav2 global costmap and returns a nav_msgs/Path.
+    </description>
+  </class>
+</library>
