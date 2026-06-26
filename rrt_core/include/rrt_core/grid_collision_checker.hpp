@@ -28,7 +28,7 @@ public:
   /// @param inflation_radius The radius around occupied cells to consider as inflated (default:
   /// 0.0)
   GridCollisionChecker(
-    const std::vector<int8_t> & grid, unsigned int width, unsigned int height, double resolution,
+    const std::vector<int8_t> & grid, uint32_t width, uint32_t height, double resolution,
     double origin_x, double origin_y, int occupied_threshold = 50, bool unknown_is_free = false,
     double inflation_radius = 0.0);
 
@@ -57,9 +57,9 @@ public:
   /// @return The corresponding point in world coordinates
   Point2D gridToWorld(int grid_x, int grid_y) const;
 
-  unsigned int width() const { return width_; }
+  uint32_t width() const { return width_; }
 
-  unsigned int height() const { return height_; }
+  uint32_t height() const { return height_; }
 
   double resolution() const { return resolution_; }
 
@@ -74,8 +74,8 @@ private:
   }
 
   std::vector<int8_t> blocked_;
-  unsigned int width_;
-  unsigned int height_;
+  uint32_t width_;
+  uint32_t height_;
   double resolution_;
   double origin_x_;
   double origin_y_;

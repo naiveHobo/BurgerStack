@@ -10,7 +10,7 @@ namespace rrt_core
 {
 
 GridCollisionChecker::GridCollisionChecker(
-  const std::vector<int8_t> & grid, unsigned int width, unsigned int height, double resolution,
+  const std::vector<int8_t> & grid, uint32_t width, uint32_t height, double resolution,
   double origin_x, double origin_y, int occupied_threshold, bool unknown_is_free,
   double inflation_radius)
 : CollisionChecker(),

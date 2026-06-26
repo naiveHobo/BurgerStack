@@ -48,7 +48,7 @@ struct RRTParams
   /// If true, perform greedy smoothing on the final path
   bool greedy_smoothing{true};
   /// Seed for random number generation
-  unsigned int seed{42};
+  uint32_t seed{42};
 };
 
 /// @brief Result of an RRT / RRT* planning attempt
