@@ -116,7 +116,7 @@ bool GridCollisionChecker::isLineFree(const Point2D & a, const Point2D & b) cons
 
   // Step size is set to half the grid resolution to ensure that we
   // check points along the line at a finer granularity than the grid cells.
-  const double step_size = resolution_ / 0.5;
+  const double step_size = resolution_ * 0.5;
   const int samples = static_cast<int>(std::ceil(length / step_size));
 
   for (int i = 0; i <= samples; ++i) {
