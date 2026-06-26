@@ -3,7 +3,7 @@ project(burger_bringup)
 
 find_package(ament_cmake REQUIRED)
 
-install(DIRECTORY launch params rviz maps
+install(DIRECTORY launch params rviz maps behavior_trees
   DESTINATION share/${PROJECT_NAME})
 
 ament_package()
