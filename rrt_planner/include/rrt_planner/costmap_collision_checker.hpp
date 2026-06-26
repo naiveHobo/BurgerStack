@@ -33,6 +33,10 @@ public:
            costmap_->getSizeInCellsY() * costmap_->getResolution();
   }
 
+  double getResolution() const override {
+    return costmap_->getResolution();
+  }
+
   bool isFree(const rrt_core::Point2D &p) const override {
     uint32_t mx = 0;
     uint32_t my = 0;

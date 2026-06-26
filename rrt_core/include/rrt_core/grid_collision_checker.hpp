@@ -40,6 +40,8 @@ public:
 
   double getMaxY() const override { return origin_y_ + height_ * resolution_; }
 
+  double getResolution() const override { return resolution_; }
+
   bool isFree(const Point2D & p) const override;
   bool isLineFree(const Point2D & a, const Point2D & b) const override;
 

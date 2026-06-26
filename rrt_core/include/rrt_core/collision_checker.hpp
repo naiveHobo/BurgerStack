@@ -17,6 +17,7 @@ public:
   virtual double getMaxX() const = 0;
   virtual double getMinY() const = 0;
   virtual double getMaxY() const = 0;
+  virtual double getResolution() const = 0;
 
   /// @brief Check if a given point is free of obstacles
   /// @param p The 2D point to check
