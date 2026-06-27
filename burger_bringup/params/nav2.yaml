@@ -277,10 +277,10 @@ planner_server:
     planner_plugins: ["GridBased"]
     GridBased:
       plugin: "rrt_planner/RRTGlobalPlanner"
-      step_size: 0.1
+      step_size: 0.2
       goal_bias: 0.1
       goal_tolerance: 0.20
-      max_iterations: 5000
+      max_iterations: 50000
       use_rrt_star: true
       neighbor_radius: 0.5
       smooth: true

@@ -1,0 +1,76 @@
+# Reproducible ROS 2 Humble environment via RoboStack (conda packages).
+# Lets the whole TurtleBot3 stack build and run on any Linux host — including
+# Ubuntu 24.04, whose native ROS is Jazzy — without Docker or a system install.
+[workspace]
+name = "tb3_autonomy"
+version = "0.1.0"
+description = "Autonomous exploration, SLAM, and a custom RRT planner for the TurtleBot3 Burger on ROS 2 Humble."
+channels = ["robostack-staging", "conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+# --- ROS 2 Humble core + build tooling ---
+ros-humble-desktop = "*"          # rclcpp, rviz2, robot_state_publisher, tf2, ...
+ros2-distro-mutex = "*"           # keeps the whole graph pinned to humble
+colcon-common-extensions = "*"
+compilers = "*"                   # conda gcc/g++ matching the RoboStack ABI
+cmake = "*"
+ninja = "*"
+pkg-config = "*"
+
+# --- Simulation + robot model ---
+ros-humble-turtlebot3-gazebo = "*"
+ros-humble-turtlebot3-msgs = "*"
+ros-humble-turtlebot3-description = "*"
+ros-humble-gazebo-ros-pkgs = "*"  # Gazebo Classic 11 ROS integration
+
+# --- Navigation + SLAM ---
+ros-humble-navigation2 = "*"
+ros-humble-nav2-bringup = "*"
+ros-humble-nav2-simple-commander = "*"
+ros-humble-slam-toolbox = "*"
+
+# --- Planner / plugin / test deps (most are pulled in by navigation2;
+#     listed explicitly so the build deps are self-documenting) ---
+ros-humble-nav2-core = "*"
+ros-humble-nav2-costmap-2d = "*"
+ros-humble-pluginlib = "*"
+ros-humble-ament-cmake-gtest = "*"
+
+# TurtleBot3 model + a quiet DDS domain, exported whenever the env is active.
+[activation.env]
+TURTLEBOT3_MODEL = "burger"
+ROS_DOMAIN_ID = "0"
+
+# Point Gazebo at the turtlebot3 models (the conda package omits this hook).
+[activation]
+scripts = ["scripts/pixi_activate.sh"]
+
+[tasks]
+build = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && colcon build --symlink-install --event-handlers console_cohesion+'"
+rebuild = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && rm -rf build install log && colcon build --symlink-install'"
+test = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && colcon test --event-handlers console_direct+ && colcon test-result --verbose'"
+bringup = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && ros2 launch burger_bringup bringup.launch.py'"
+# AWS/OSRF ServiceSim office world (camera burger). Gazebo + robot only:
+sim-office = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup sim.launch.py world:=office'"
+# Full office stack: Gazebo + SLAM + Nav2 + RViz. SLAM/Nav2 auto-start once the
+# robot publishes /scan (no hand-tuned delay needed, even for this heavy world).
+office = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office'"
+
+# --- Autonomous frontier exploration (office world): full stack + explorer.
+# The explorer starts once Nav2 is up; tuned params live in params/exploration.yaml.
+explore = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office explore:=true'"
+
+# --- Resume: continue mapping on the saved map (maps/map) while still exploring new areas.
+explore-resume = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office explore:=true slam_mode:=continue'"
+
+# --- Localization only via AMCL + map_server (no exploration). AMCL is seeded at the office
+# spawn so it converges without a manual RViz pose. Send goals with RViz's 'Nav2 Goal' tool.
+# `localize` uses YOUR saved map (maps/map.yaml, from map_saver during exploration):
+localize = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office localizer:=amcl map_yaml:=$(ros2 pkg prefix burger_bringup)/share/burger_bringup/maps/map.yaml'"
+# `localize-gt` uses the bundled GROUND-TRUTH map (maps/map_gt.yaml, the launch default):
+localize-gt = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office localizer:=amcl'"
+
+# --- Optional: frontier debug overlays (raw/optimized frontiers, MRTSP scores) for tuning.
+# Run alongside `pixi run explore`.
+explore-debug = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch frontier_exploration_ros2 frontier_debug.launch.py params_file:=$(ros2 pkg prefix burger_bringup)/share/burger_bringup/params/exploration.yaml use_sim_time:=true'"
