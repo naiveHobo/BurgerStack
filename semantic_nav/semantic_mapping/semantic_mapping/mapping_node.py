@@ -134,10 +134,19 @@ class MappingNode(Node):
     # --- batch enrichment + persistence ----------------------------------
 
     def _on_build(self, request, response):
-        enriched = enrich_store(
-            self.store, self.crops_by_id,
-            describer=self.describer, embedder=self.embedder,
-            region_eps=self.region_eps)
+        # Isolate backend failures so one bad crop can't abort the whole save:
+        # enrich_store skips failed entities (logged here), and any unexpected
+        # error still falls through to persist whatever entities we have.
+        try:
+            enriched = enrich_store(
+                self.store, self.crops_by_id,
+                describer=self.describer, embedder=self.embedder,
+                region_eps=self.region_eps,
+                on_error=lambda eid, stage, exc: self.get_logger().warn(
+                    f"enrich {stage} failed for entity {eid}: {exc}"))
+        except Exception as e:  # noqa: BLE001 - never let enrichment block persistence
+            self.get_logger().error(f"enrichment failed, saving un-enriched map: {e}")
+            enriched = 0
         path = os.path.expanduser(request.output_path) if request.output_path \
             else self.map_output_path
         try:

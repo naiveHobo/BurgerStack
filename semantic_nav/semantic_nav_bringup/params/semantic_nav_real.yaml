@@ -81,6 +81,11 @@ map_finalizer:
     map_topic: "/map"
     completion_topic: "/exploration_complete"
     auto_finalize: false
+    # Real-backend enrich over all retained crops takes minutes (ollama VLM
+    # describe dominates; CLIP weights also download on first use). A ~200-crop
+    # build measured ~117 s, so the old 30 s default reported a false
+    # "semantic FAILED" while the build actually finished. Wait for the result.
+    service_timeout_sec: 300.0
 
 # --- Phase 2: semantic map server (CLIP text queries) --------------------
 map_server_node:

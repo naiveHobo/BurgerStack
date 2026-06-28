@@ -43,6 +43,11 @@ map_finalizer:
     map_topic: "/map"
     completion_topic: "/exploration_complete"
     auto_finalize: false
+    # The batch enrich over all retained crops can take minutes with real
+    # backends (ollama VLM describe dominates; CLIP weights also download on
+    # first use). Keep this well above the expected build time so finalize waits
+    # for the real result instead of reporting a false "semantic FAILED".
+    service_timeout_sec: 300.0
 
 # --- Phase 2: semantic map server ----------------------------------------
 map_server_node:

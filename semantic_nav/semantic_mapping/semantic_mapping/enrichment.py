@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import hashlib
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 import numpy as np
 
@@ -80,22 +80,42 @@ def enrich_store(
     describer: Optional[Describer] = None,
     embedder: Optional[Embedder] = None,
     region_eps: float = 0.0,
+    on_error: Optional[Callable[[int, str, Exception], None]] = None,
 ) -> int:
     """Enrich entities that have a retained crop, then optionally cluster regions.
 
-    Returns the number of entities enriched (those with a crop and at least one
-    backend). Entities without a crop are left untouched.
+    Returns the number of entities enriched (those with a crop where at least one
+    backend succeeded). Entities without a crop are left untouched.
+
+    Each backend call is isolated: a real describer/embedder that throws on one
+    crop (e.g. a transient model error or a malformed crop) must not abort the
+    whole batch, since the caller persists the store afterward and a single
+    failure would otherwise leave the map unsaved. Failures are reported via the
+    optional ``on_error(entity_id, stage, exc)`` callback ("describe"/"embed");
+    the module stays pure (no logging side effects of its own).
     """
     enriched = 0
     for e in store.entities:
         crop = crops_by_id.get(e.id)
         if crop is None or (describer is None and embedder is None):
             continue
+        ok = False
         if describer is not None:
-            e.description = describer.describe(crop)
+            try:
+                e.description = describer.describe(crop)
+                ok = True
+            except Exception as exc:  # noqa: BLE001 - one bad crop must not abort the batch
+                if on_error is not None:
+                    on_error(e.id, "describe", exc)
         if embedder is not None:
-            e.embedding = embedder.embed_image(crop)
-        enriched += 1
+            try:
+                e.embedding = embedder.embed_image(crop)
+                ok = True
+            except Exception as exc:  # noqa: BLE001 - one bad crop must not abort the batch
+                if on_error is not None:
+                    on_error(e.id, "embed", exc)
+        if ok:
+            enriched += 1
 
     if region_eps and region_eps > 0:
         assign_regions(store.entities, eps=region_eps)

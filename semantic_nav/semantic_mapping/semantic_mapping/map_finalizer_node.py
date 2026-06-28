@@ -19,6 +19,7 @@ import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 from nav2_msgs.srv import SaveMap
 from std_msgs.msg import Empty
@@ -61,8 +62,17 @@ class MapFinalizerNode(Node):
         self.create_service(Trigger, "~/finalize", self._on_trigger, callback_group=self.cb)
 
         if bool(g("auto_finalize")):
+            # The explorer publishes the completion event latched (reliable +
+            # transient_local, KeepLast(1)). Match it so we still receive the
+            # one-shot event across discovery races or a finalizer restart, not
+            # just while both ends happen to be connected.
+            completion_qos = QoSProfile(
+                depth=1, history=HistoryPolicy.KEEP_LAST,
+                reliability=ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL)
             self.create_subscription(
-                Empty, g("completion_topic"), self._on_complete, 10, callback_group=self.cb)
+                Empty, g("completion_topic"), self._on_complete,
+                completion_qos, callback_group=self.cb)
             self.get_logger().info(
                 f"auto-finalize armed on '{g('completion_topic')}'")
 

@@ -5,6 +5,8 @@ from semantic_store.schema import Observation
 from semantic_store.store import SpatialSemanticStore
 
 from semantic_mapping.enrichment import (
+    Describer,
+    Embedder,
     MockDescriber,
     MockEmbedder,
     enrich_store,
@@ -96,3 +98,48 @@ def test_enrich_store_without_backends_only_clusters():
     n = enrich_store(store, {id0: CROP_A}, region_eps=1.0)
     assert n == 0  # no describer/embedder -> nothing enriched
     assert all(e.description == "" and e.embedding is None for e in store.entities)
+
+
+# --- enrich_store resilience (one bad crop must not abort the batch) ------
+
+class _CropSelectiveDescriber(Describer):
+    """Describes the dark crop, but raises on the bright one."""
+
+    def describe(self, crop_bgr):
+        if crop_bgr.mean() > 100:  # CROP_B
+            raise RuntimeError("describe boom")
+        return "ok"
+
+
+class _CropSelectiveEmbedder(Embedder):
+    """Embeds the dark crop, but raises on the bright one."""
+
+    def embed_image(self, crop_bgr):
+        if crop_bgr.mean() > 100:  # CROP_B
+            raise RuntimeError("embed boom")
+        return np.ones(8, dtype=np.float32) / np.sqrt(8.0)
+
+    def embed_text(self, text):  # pragma: no cover - unused here
+        return np.ones(8, dtype=np.float32) / np.sqrt(8.0)
+
+
+def test_enrich_store_does_not_propagate_backend_errors():
+    store, id0, id1 = _store_with_two_entities()
+    errors = []
+
+    n = enrich_store(
+        store, {id0: CROP_A, id1: CROP_B},
+        describer=_CropSelectiveDescriber(), embedder=_CropSelectiveEmbedder(),
+        region_eps=0.0,
+        on_error=lambda eid, stage, exc: errors.append((eid, stage)))
+
+    by_id = {e.id: e for e in store.entities}
+    # Good crop fully enriched; bad crop skipped, not crashed.
+    assert n == 1
+    assert by_id[id0].description == "ok"
+    assert by_id[id0].embedding is not None
+    assert by_id[id1].description == ""       # backend raised -> left untouched
+    assert by_id[id1].embedding is None
+    # The failure was reported per-entity per-stage, not swallowed silently.
+    assert (id1, "describe") in errors
+    assert (id1, "embed") in errors
