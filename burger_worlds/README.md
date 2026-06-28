@@ -10,9 +10,9 @@ semantic-reasoning layer in addition to the 2D LIDAR (`/scan`).
 
 ## Worlds
 
-### `small_house` — `worlds/small_house/small_house.world`  (default)
-The AWS RoboMaker **residential Small House**: a furnished single-storey home — living
-room, bedroom, kitchen and balcony — with sofas, a bed, a TV, refrigerator, kitchen units,
+### `small_house`: `worlds/small_house/small_house.world`  (default)
+The AWS RoboMaker **residential Small House**: a furnished single-storey home (living
+room, bedroom, kitchen and balcony) with sofas, a bed, a TV, refrigerator, kitchen units,
 chairs, tables, lamps/chandeliers and decor (~64 referenced `aws_robomaker_residential_*`
 models; 68 model dirs including nested includes). A reference occupancy map ships in
 `worlds/small_house/map/`.
@@ -27,7 +27,7 @@ ros2 launch burger_bringup bringup.launch.py      # full stack (small_house is t
 `bringup.launch.py` and for the generic `pixi` full-stack tasks (`bringup`, `explore`,
 `localize`, `ai-mapping`, `ai-navigation`, ...). The burger spawns at `(-3.5, -4.5)`.
 
-### `office` — `worlds/office/service.world`
+### `office`: `worlds/office/service.world`
 The AWS RoboMaker / **OSRF ServiceSim** office: a multi-room office with corridors,
 cubicles, meeting rooms, a cafe/refreshment area and bathrooms, furnished with desks,
 chairs, couches, appliances and computers, plus human `actor` models. A reference
@@ -39,16 +39,16 @@ ros2 launch burger_bringup bringup.launch.py world:=office x_pose:=-6.0 y_pose:=
 ```
 
 The office is no longer the default, so select it with `world:=office` **and** its spawn
-pose (`x_pose:=-6.0 y_pose:=8.0`) — `pixi run sim-office` already does both.
+pose (`x_pose:=-6.0 y_pose:=8.0`); `pixi run sim-office` already does both.
 
 ## Provenance & license
 
 Both worlds and their models originate from AWS RoboMaker and were assembled from
 `github.com/yojuna/robot_worlds`:
 
-- **office** — AWS RoboMaker / OSRF ServiceSim (`github.com/osrf/servicesim`), Apache-2.0,
+- **office**: AWS RoboMaker / OSRF ServiceSim (`github.com/osrf/servicesim`), Apache-2.0,
   from `robot_worlds/worlds/office/`.
-- **small_house** — the AWS RoboMaker Small House world sample
+- **small_house**: the AWS RoboMaker Small House world sample
   (`github.com/aws-robotics/aws-robomaker-small-house-world`, MIT), from
   `robot_worlds/worlds/small_house/`. See that repository for authoritative license terms.
 
@@ -56,8 +56,8 @@ Both worlds and their models originate from AWS RoboMaker and were assembled fro
 
 Two repairs were applied to the `robot_worlds` copy when vendoring:
 
-1. **Backfilled 4 missing model directories** — `cubicle_wall`, `door`,
-   `cubicle_corner`, `cubicle_island` — from the upstream `osrf/servicesim`
+1. **Backfilled 4 missing model directories** (`cubicle_wall`, `door`,
+   `cubicle_corner`, `cubicle_island`) from the upstream `osrf/servicesim`
    (`servicesim_competition/models/`). The `robot_worlds` copy referenced these
    (~230 placements: cubicle partitions and doors) but omitted their meshes, so the
    world would otherwise load with the entire cubicle layout and all doors missing
@@ -77,7 +77,7 @@ contents were already present as extracted files) are **not** vendored.
    `/scan` `/odom` `/cmd_vel`. Its (author-validated, on-floor) pose is reused as the
    burger spawn point.
 
-Unlike the office, the small_house needed **no model backfill** — all 64 referenced
+Unlike the office, the small_house needed **no model backfill**: all 64 referenced
 `aws_robomaker_residential_*` models are present, and the world is fully `model://`-based.
 Its model SDFs reference meshes with relative `file://models/...` URIs, resolved via
 `GAZEBO_RESOURCE_PATH` (set to `worlds/small_house`), so there is **no `media/` tree**.
@@ -91,4 +91,4 @@ their COLLADA `.dae` by the original authors that points to a non-existent Windo
 (`G:\...` / `C:\...`). Gazebo logs an "unable to find texture" warning and renders those
 few meshes with a default material; geometry, collisions and all other models are
 unaffected. The local PNG textures ship alongside, so this is fixable later by editing
-those `.dae` `<init_from>` references — the meshes are left as-is to stay faithful to upstream.
+those `.dae` `<init_from>` references; the meshes are left as-is to stay faithful to upstream.

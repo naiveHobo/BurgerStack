@@ -8,3 +8,6 @@ __pycache__/
 .pixi/
 
 weights/
+
+# large screen-recording sources (keep local, do not commit)
+*.webm

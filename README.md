@@ -72,66 +72,40 @@ When you drive manually instead (`pixi run bringup` and a Nav2 Goal in RViz), th
 
 ---
 
-## What's built vs. what's reused
+## Packages
 
 **Reused, mostly unmodified:**
 
 | Component | Role | Why it's reused |
 | --- | --- | --- |
-| **`slam_toolbox`** | 2D SLAM → `/map` and `map→odom` | Writing a SLAM backend (scan matching, pose graph, loop closure) is a separate multi-month project. It's tuned here, not reimplemented. |
+| **`slam_toolbox`** | 2D SLAM, producing `/map` and the `map → odom` correction | Writing a SLAM backend (scan matching, pose graph, loop closure) is a separate multi-month project. It's tuned here, not reimplemented. |
 | **Nav2** | Costmaps, controller (DWB), recovery behaviors, behavior tree, lifecycle | The RRT planner plugs into it and the rest is configured, not rewritten. The orchestration and control machinery is stock and battle-tested. |
-| **`nav2_map_server` + AMCL** | Serve a saved map / localize against it | Standard localization for the no-SLAM runs. |
+| **`nav2_map_server` + AMCL** | Serve a saved map, localize against it | Standard localization for the no-SLAM runs. |
 | **`frontier_exploration_ros2`** | Frontier detection + exploration policy | Integrated as a git submodule ([mertgulerx/frontier_exploration_ros2](https://github.com/mertgulerx/frontier_exploration_ros2), pinned). A capable open-source explorer already existed; it's wired into the Nav2 stack rather than rebuilding frontier detection. |
 
-**Written from scratch (this repo):**
+**Written from scratch (this repo), each with its own README for the design and parameter detail:**
 
 | Package | What it is |
 | --- | --- |
 | [`rrt_core`](rrt_core/README.md) | The RRT / RRT\* algorithm as a pure C++ library: no ROS, no grids, unit-tested in isolation. |
 | [`rrt_planner`](rrt_planner/README.md) | The ROS 2 integration: a Nav2 `GlobalPlanner` plugin and a standalone planning node, both driven by `rrt_core`. |
-| [`burger_bringup`](burger_bringup) | The composition layer: launch files, tuned parameters, RViz configs, URDF, and saved maps that wire the whole thing together. |
-| [`burger_worlds`](burger_worlds/README.md) | Vendored Gazebo worlds (`small_house`, `office`) with their models and reference maps. |
-| [`semantic_nav/`](semantic_nav/semantic_nav_bringup/README.md) | A six-package layer adding semantic perception, a spatial semantic memory, and agentic natural-language navigation. Purely additive: it touches none of the navigation code above. |
+| [`burger_bringup`](burger_bringup) | The composition layer (no README of its own): launch files (`sim`, `slam`, `nav2`, `localization_amcl`, and the unified `bringup`), tuned parameter files, RViz configs, the URDF (including the RGB-D burger variant `semantic_nav` uses), and saved maps. `bringup.launch.py` is the single entry point everything else routes through. |
+| [`burger_worlds`](burger_worlds/README.md) | Vendored Gazebo worlds (`small_house`, `office`) with their models and reference occupancy maps. |
+| [`semantic_nav/`](semantic_nav/README.md) | A six-package layer adding semantic perception, a spatial semantic memory, and agentic natural-language navigation. Purely additive: it touches none of the navigation code above. |
 
----
-
-## The packages
-
-### Core autonomy
-
-**[`rrt_core`](rrt_core/README.md)** is the planner, with zero ROS in it. It plans in continuous 2D world coordinates and asks an abstract `CollisionChecker` whether a point or a line segment is free. That one decision is what lets a single tested algorithm serve both a raw occupancy grid and a live Nav2 costmap, and what lets the whole thing be unit-tested without a simulator. *Depends on:* nothing but a C++ toolchain.
-
-**[`rrt_planner`](rrt_planner/README.md)** wraps `rrt_core` for ROS in two forms. The **Nav2 plugin** (`rrt_planner/RRTGlobalPlanner`) plans over the global costmap; the **standalone node** (`rrt_planner_node`) plans over a `/map` topic, for development outside the full stack. Both publish the search tree and final path as RViz markers. *Depends on:* `rrt_core`, `nav2_core`, `nav2_costmap_2d`, `pluginlib`.
-
-**`frontier_exploration_ros2`** *(submodule)* detects frontiers (the boundary between mapped and unknown space), scores them, and sends the best one to Nav2 as a `NavigateToPose` goal, looping until the map is complete. It's driven through `burger_bringup` with a tuned [`exploration.yaml`](burger_bringup/params/exploration.yaml). *Depends on:* Nav2, a live `/map`.
-
-**[`burger_worlds`](burger_worlds/README.md)** ships two simulation worlds and everything they need: `small_house` (an AWS RoboMaker residential house, the default) and `office` (the AWS/OSRF ServiceSim). It also ships reference occupancy maps so you can run localization without mapping first. *Depends on:* Gazebo, the TurtleBot3 models.
-
-**[`burger_bringup`](burger_bringup)** is the glue. It writes almost no logic; it composes the stack via launch files (`sim`, `slam`, `nav2`, `localization_amcl`, and the unified `bringup`), parameter files (`slam.yaml`, `nav2.yaml`, `exploration.yaml`), RViz configs, the URDF (including the RGB-D burger variant used by `semantic_nav`), and saved maps. The unified `bringup.launch.py` is the single entry point everything else routes through.
-
-### Semantic navigation
-
-Six packages under [`semantic_nav/`](semantic_nav), summarized in [Semantic navigation](#semantic-navigation) below and documented in full in [`semantic_nav_bringup/README.md`](semantic_nav/semantic_nav_bringup/README.md):
-
-- **`semantic_nav_msgs`** defines the interfaces (semantic objects, map queries, the task action, the build trigger).
-- **`semantic_store`** is the pure-Python spatial semantic memory: detection association, ranked retrieval, and JSON persistence. It's the Python counterpart to `rrt_core`.
-- **`semantic_perception`** turns RGB-D into 3D detections in the `map` frame, behind a pluggable (mockable) detector.
-- **`semantic_mapping`** fuses detections into a semantic map (Phase 1) and serves queries over a saved one (Phase 2).
-- **`semantic_reasoning`** is a shared tool layer driven by two frontends: a local ollama agent (the `ExecuteTask` action) and an MCP server for Claude.
-- **`semantic_nav_bringup`** composes all of it with the navigation stack into the two-phase demo.
+The two pieces worth understanding in depth, the RRT planner and the semantic layer, are summarized below.
 
 ---
 
 ## The RRT planner
 
-This is the piece worth understanding in detail, so here's the design; the parameter tables and API live in [`rrt_core/README.md`](rrt_core/README.md) and [`rrt_planner/README.md`](rrt_planner/README.md).
+The planner is the main piece written from scratch, so here is the core idea; the algorithm walkthrough, parameter tables, and API live in [`rrt_core/README.md`](rrt_core/README.md) and [`rrt_planner/README.md`](rrt_planner/README.md).
 
-The single most important decision is that **the algorithm knows nothing about ROS, costmaps, or occupancy grids.** `rrt_core::RRT` plans in metric world coordinates and consults a `CollisionChecker` interface for two questions: is this point free, and is this segment free? Everything map-specific hides behind that interface. The payoff is concrete:
+![RRT / RRT* planning on the saved map](docs/media/rrt_path.gif)
 
-- **One algorithm, two data sources.** The standalone node feeds RRT a `GridCollisionChecker` built from a `nav_msgs/OccupancyGrid` (with its own occupancy threshold, unknown-cell policy, and obstacle inflation). The Nav2 plugin feeds it a `CostmapCollisionChecker` that queries the live `nav2_costmap_2d::Costmap2D`, which already carries inflation, so the plugin gets it for free. The two grids even use different value scales (an OccupancyGrid is -1/0..100, a costmap is 0..255), which is exactly why the abstraction earns its keep.
-- **It's testable without a robot.** Because the core has no ROS dependency, it's unit-tested with hand-built grids: paths through a wall-with-a-gap, an enclosed goal that fails gracefully, a blocked start, determinism under a fixed seed.
+*The standalone planner (`pixi run plan-demo`) on the saved `small_house` map: no Gazebo, just `/map` plus a start and a goal, producing a `nav_msgs/Path`. The RRT/RRT\* tree (blue) explores the free space while the path (red) re-plans to each new goal.*
 
-Inside the algorithm: sampling with a goal bias, nearest-neighbour lookup accelerated by a **uniform spatial hash** (so it's roughly O(1) amortized instead of O(n) per iteration), optional **RRT\*** rewiring for shorter paths, and greedy **shortcut smoothing** that collapses a jagged path down to its real inflection points before re-densifying it. The RNG is seeded from a parameter, so runs are reproducible, which matters for both tests and demos.
+The single load-bearing decision is that **the algorithm knows nothing about ROS, costmaps, or occupancy grids.** `rrt_core::RRT` plans in metric world coordinates and consults a `CollisionChecker` interface for two questions: is this point free, and is this segment free? That one abstraction lets a single tested algorithm drive two very different data sources. The standalone node feeds it a `GridCollisionChecker` built from a `nav_msgs/OccupancyGrid`; the Nav2 plugin feeds it a `CostmapCollisionChecker` over the live `nav2_costmap_2d::Costmap2D`, which already carries inflation. Because the core has no ROS dependency, it is also unit-tested without a robot, against hand-built grids. The sampling, spatial-hash nearest-neighbour lookup, RRT\* rewiring, and greedy smoothing are all covered in [`rrt_core/README.md`](rrt_core/README.md).
 
 ### Running it
 
@@ -142,7 +116,14 @@ pixi run bringup          # sim + SLAM + Nav2 (RRT) + RViz, no exploration
 # then in RViz, use the "Nav2 Goal" tool to send a goal
 ```
 
-You can also test the planner in isolation, without the controller driving, by calling the `ComputePathToPose` action with `planner_id: GridBased`. For development against a plain map topic, the standalone `rrt_planner_node` (start via RViz's *2D Pose Estimate*, goal via *2D Goal Pose*) is documented in [`rrt_planner/README.md`](rrt_planner/README.md#standalone-planner-node).
+You can also run the planner standalone on the saved map with no Gazebo, the Section-3 "occupancy grid + start + goal -> `nav_msgs/Path`" demo:
+
+```bash
+pixi run plan-demo        # map_server (saved map) + rrt_planner_node + RViz
+# then in RViz use the "2D Goal Pose" tool to send a goal
+```
+
+The standalone node's topics and parameters are documented in [`rrt_planner/README.md`](rrt_planner/README.md#standalone-planner-node).
 
 ---
 
@@ -150,9 +131,13 @@ You can also test the planner in isolation, without the controller driving, by c
 
 Exploration is the interplay of three things: `slam_toolbox` building the map, `frontier_exploration_ros2` choosing where to go, and Nav2 getting the robot there. The interesting part is the tuning and the sequencing.
 
+![Autonomous exploration in small_house](docs/media/exploration.gif)
+
+*`pixi run explore`: frontier-driven autonomous exploration of `small_house`. Gazebo (left) and, in RViz (right), the SLAM map filling in with inflated costmaps, frontier markers, and the live Nav2 path as the robot drives itself around.*
+
 **SLAM tuning.** A couple of `slam_toolbox` defaults are wrong for an explorer that makes short hops. `minimum_travel_distance` is lowered so small moves still fold fresh scans into the map, and `map_update_interval` is shortened so newly seen area shows up promptly instead of the explorer acting on a stale map. The tuned values are in [`slam.yaml`](burger_bringup/params/slam.yaml).
 
-**Startup sequencing.** Bringing everything up at once is a race: the explorer will crash Nav2's lifecycle manager if it starts before Nav2 has activated. So `bringup.launch.py` gates each stage on a real readiness signal rather than a fixed sleep. Gazebo comes first, then SLAM/Nav2 once the robot is actually publishing `/scan`, then the explorer once `/navigate_to_pose` is advertised (meaning Nav2 has fully activated). Each wait is bounded by a timeout so a failed bring-up can't deadlock. This is why a heavy world like `office` "just works" without you fiddling with delays.
+**Startup sequencing.** Bringing everything up at once is a race: the explorer will crash Nav2's lifecycle manager if it starts before Nav2 has activated. So `bringup.launch.py` gates each stage on a real readiness signal rather than a fixed sleep. Gazebo comes first, then SLAM/Nav2 once the robot is actually publishing `/scan`, then the explorer once `/navigate_to_pose` is advertised (meaning Nav2 has fully activated). Each wait is bounded by a timeout so a failed bring-up can't deadlock. This is why a heavy world like `small_house` "just works" without you fiddling with delays.
 
 **Modes.** The `slam_mode` argument picks the map behavior:
 
@@ -169,39 +154,54 @@ ros2 launch burger_bringup bringup.launch.py explore:=true world:=office x_pose:
 
 Save the map at any point with `map_saver_cli` (see [Quickstart](#quickstart)). One gotcha worth knowing: `colcon` symlink-installs the maps directory, so a brand-new map file isn't linked into the install tree until you `pixi run build` once. Save, rebuild, then use it.
 
+> `explore-resume` resumes a serialized `slam_toolbox` **pose-graph** (`burger_bringup/maps/map.posegraph` + `.data`), which is a different artifact from the `.pgm`/`.yaml` occupancy map and is **not** shipped in the repo. Create one during an `explore` run via slam_toolbox's *Serialize Map* RViz panel (or `ros2 service call /slam_toolbox/serialize_map ...`), saved at base name `burger_bringup/maps/map`, then `explore-resume` will continue from it.
+
 ---
 
 ## Semantic navigation
 
-This layer answers a different question than the rest of the stack: not "how do I get there" but "where *is* the chair?" It's deliberately **additive**: it introduces no new planning or control code, and reuses the same Nav2 `NavigateToPose` action the explorer already uses. The full guide is [`semantic_nav_bringup/README.md`](semantic_nav/semantic_nav_bringup/README.md); the short version is two phases.
+This layer answers a different question than the rest of the stack: not "how do I get there" but "where *is* the chair?" It is deliberately **additive**, introducing no new planning or control code and reusing the same Nav2 `NavigateToPose` action the explorer already uses. The design (how labels are generated, stored, and queried) lives in [`semantic_nav/README.md`](semantic_nav/README.md); the full run guide, the mock-to-real switch, and the Claude/MCP setup live in [`semantic_nav_bringup/README.md`](semantic_nav/semantic_nav_bringup/README.md).
 
-**Phase 1: build a semantic map while exploring.** As the robot maps the world, `semantic_perception` takes RGB-D frames, runs an object detector, deprojects detections to 3D, and transforms them into the `map` frame. `semantic_mapping` fuses those into a spatial semantic memory (one entity per real object, with a description, an embedding, and a position), then persists both the semantic map and the occupancy map on a finalize step, either automatically when exploration completes or on demand.
+Natural-language navigation driven by **Claude through the MCP server**: *"find the trash can in the robot's semantic map and drive the robot to it,"* then *"now take the robot to the refrigerator."* Claude loads the tool schemas, queries the semantic map (matching the object by label/embedding), and dispatches a real Nav2 goal that the custom RRT planner solves:
+
+<table>
+  <tr>
+    <td width="50%"><b>Claude reasoning over MCP</b><br/><img src="docs/media/semantic_nav_claude.gif" width="100%"/></td>
+    <td width="50%"><b>RViz: semantic map, RRT path, robot</b><br/><img src="docs/media/semantic_nav_rviz.gif" width="100%"/></td>
+  </tr>
+  <tr>
+    <td><b>Gazebo: the house</b><br/><img src="docs/media/semantic_nav_gazebo.gif" width="100%"/></td>
+    <td><b>Robot onboard camera</b><br/><img src="docs/media/semantic_nav_camera.gif" width="100%"/></td>
+  </tr>
+</table>
+
+> The four panels are one synchronized run: Claude's tool calls (top-left) drive the robot to the trash can, then the refrigerator, with the plan and drive shown in RViz (top-right), Gazebo (bottom-left), and the robot's camera (bottom-right).
+
+It runs in two phases that share the SLAM `map` frame:
+
+- **Phase 1, build a semantic map while exploring.** `semantic_perception` turns RGB-D frames into 3D detections in the `map` frame; `semantic_mapping` fuses them into one entity per real object (description, embedding, position) and persists both the semantic map and the occupancy map on a finalize step.
+- **Phase 2, drive by natural language.** The robot localizes (AMCL) against the saved occupancy map, loads the semantic map, and exposes an `ExecuteTask` action (or the MCP server for Claude). A reasoner turns a command into tool calls and dispatches a real Nav2 goal.
 
 ```bash
-ros2 launch semantic_nav_bringup semantic_mapping.launch.py world:=office explore:=true rviz:=true
-```
-
-**Phase 2: drive by natural language.** The robot localizes (AMCL) against the saved occupancy map, loads the semantic map, and exposes an `ExecuteTask` action. An agentic reasoner turns a command into tool calls (query the semantic map, read the robot pose, navigate) and dispatches a real Nav2 goal:
-
-```bash
-ros2 launch semantic_nav_bringup semantic_navigation.launch.py world:=office
+# Phase 1: build the semantic map while exploring
+ros2 launch semantic_nav_bringup semantic_mapping.launch.py world:=small_house explore:=true rviz:=true
+# Phase 2: drive by natural language
+ros2 launch semantic_nav_bringup semantic_navigation.launch.py world:=small_house
 ros2 action send_goal /execute_task_node/execute_task \
     semantic_nav_msgs/action/ExecuteTask "{command: 'go to the chair'}" --feedback
 ```
 
-**Mock-first, real-backend-optional.** Out of the box everything runs with mock detectors, describers, embedders, and reasoning (no GPU, no LLM, no network), so the architecture and the data flow can be exercised and tested anywhere. The real backends (YOLO-World detection, an ollama VLM describer, CLIP embeddings, an ollama tool-calling agent, and an MCP server for Claude) slot in behind the same interfaces with no launch changes, via the optional `ai` pixi environment. See [Environment & reproducibility](#environment--reproducibility) and the [semantic_nav README](semantic_nav/semantic_nav_bringup/README.md#going-from-mock-to-real-backends).
+Everything runs **mock-first** out of the box (no GPU, LLM, or network), so the architecture and data flow can be exercised and tested anywhere. The real backends (YOLO-World detection, an ollama VLM describer, CLIP embeddings, an ollama tool-calling agent, and the MCP server for Claude) slot in behind the same interfaces with no launch changes, via the optional `ai` pixi environment. Running each phase against the real backends is covered in [`semantic_nav_bringup/README.md`](semantic_nav/semantic_nav_bringup/README.md#going-from-mock-to-real-backends).
 
-### Driving navigation from Claude (MCP)
+### Driving from Claude (MCP)
 
-The reasoning layer has two interchangeable frontends sitting on one shared tool layer. The `ExecuteTask` action above is the local ollama frontend; the other is an MCP server that lets Claude (Desktop or Code) drive the robot directly. The server exposes the same tools over the [Model Context Protocol](https://modelcontextprotocol.io) (query the semantic map, navigate to a matched object or an explicit pose, read the robot pose). Claude brings its own reasoning loop, so the server only serves tools, it doesn't run the agent itself, and both frontends dispatch through the exact same `RobotTools`.
-
-Start a Phase 2 stack first (ideally the real-backend `pixi run -e ai ai-navigation`, so CLIP text embeddings make a query like "the chair" match by meaning). Then start the MCP server in the `ai` environment, which is where the `mcp` dependency lives:
+The reasoning layer has two interchangeable frontends on one shared tool layer: the local ollama agent (`ExecuteTask`) above, and an MCP server that lets Claude drive the robot directly over the [Model Context Protocol](https://modelcontextprotocol.io). Start a Phase 2 stack (ideally the real-backend `pixi run -e ai ai-navigation`, so CLIP text embeddings make "the chair" match by meaning), then start the server in the `ai` environment, where the `mcp` dependency lives:
 
 ```bash
 pixi run -e ai mcp-server          # = ros2 run semantic_reasoning mcp_server
 ```
 
-It speaks MCP over stdio (stdout is the protocol channel; logs go to stderr), so register it the way you would any stdio server. In Claude Code, from the repo root:
+It speaks MCP over stdio, so register it like any stdio server. In Claude Code, from the repo root:
 
 ```bash
 claude mcp add semantic-nav -- pixi run -e ai mcp-server
@@ -221,7 +221,7 @@ In Claude Desktop, add it to `claude_desktop_config.json` with `cwd` pointing at
 }
 ```
 
-With the server connected, ask Claude in plain language ("where is the chair, and take me there"). It calls the map-query tool, picks a pose, and sends a real Nav2 goal through the running stack, the same path the ollama agent drives. The full server notes are in the [semantic_nav MCP section](semantic_nav/semantic_nav_bringup/README.md#claude--mcp-frontend).
+With the server connected, ask Claude in plain language ("where is the chair, and take me there"); it queries the map, picks a pose, and sends a real Nav2 goal through the running stack, the same path the ollama agent drives. Server internals are in the [semantic_nav MCP notes](semantic_nav/semantic_nav_bringup/README.md#claude--mcp-frontend).
 
 ---
 
@@ -256,8 +256,9 @@ pixi run -e ai ai-navigation
 | `sim-small-house` | Gazebo + robot only, residential house world. |
 | `sim-office` | Gazebo + robot only, office world (spawns at the office pose). |
 | `bringup` | Full stack (sim + SLAM + Nav2 + RViz), no exploration; drive manually with Nav2 goals. |
+| `plan-demo` | Standalone RRT planner on the saved map (no Gazebo): `map_server` + `rrt_planner_node` + RViz. Set a goal with RViz's *2D Goal Pose*; watch the tree + path. |
 | `explore` | Full stack + autonomous frontier exploration (small_house). |
-| `explore-resume` | Resume exploration on the saved map (`slam_mode:=continue`). |
+| `explore-resume` | Resume exploration from a serialized slam_toolbox pose-graph (`slam_mode:=continue`). Requires `maps/map.posegraph`+`.data`, which aren't shipped, so serialize one first (see [Exploration & SLAM](#exploration--slam)). |
 | `localize` | AMCL + map_server on *your* saved `map.yaml`. Send goals from RViz. |
 | `localize-gt` | AMCL on the vendored ground-truth occupancy map. |
 | `explore-debug` | Frontier debug overlays (raw/optimized frontiers, scores); run alongside `explore`. |
@@ -281,59 +282,6 @@ pixi run test
 
 The testing strategy is to **validate at the lowest level that can catch a given class of bug**, because the cheap levels are where most bugs actually are:
 
-- **Algorithm correctness → pure unit tests, no ROS.** `rrt_core` (grid conversions, inflation, paths around walls, determinism, RRT\* path quality) and the Python `semantic_store` / perception / mapping / reasoning logic all test as plain libraries: no graph, no simulator, no GPU.
-- **Single-node ROS behavior → scripted probes.** Publish a synthetic map + start + goal and assert a sensible path comes back; call `ComputePathToPose` and assert a non-empty path. These catch QoS, interface, and costmap-policy bugs without a simulator.
-- **Whole-system behavior → a headless sim run.** The exploration livelock and the SLAM/explorer parameter interaction only show up when the full stack runs end to end, so that's the level you run to trust the integration.
-
----
-
-## Repository layout
-
-```
-BurgerStack/
-├── pixi.toml                    # RoboStack / ROS 2 Humble environment + task runner
-├── scripts/pixi_activate.sh     # Gazebo model-path & database fixups on activation
-├── rrt_core/                    # RRT / RRT* algorithm library (pure C++, no ROS)
-├── rrt_planner/                 # Nav2 global-planner plugin + standalone node
-├── frontier_exploration_ros2/   # vendored explorer (git submodule)
-├── burger_worlds/               # Gazebo worlds (small_house, office) + reference maps
-├── burger_bringup/              # launch / params / rviz / urdf / maps (the composition layer)
-└── semantic_nav/                # natural-language semantic navigation (6 packages)
-    ├── semantic_nav_msgs/
-    ├── semantic_store/
-    ├── semantic_perception/
-    ├── semantic_mapping/
-    ├── semantic_reasoning/
-    └── semantic_nav_bringup/
-```
-
----
-
-## Troubleshooting
-
-**The robot won't move.** Check, in order: is the TF tree complete (`map → odom → base_footprint` all present)? Is Nav2's lifecycle manager reporting "active"? Does the costmap cover the robot? Is the goal in free, known, non-inflated space? Is `/cmd_vel` actually being published? Most "won't move" bugs are one of these, and they're quickest to find in that order.
-
-**A new map isn't picked up.** `colcon` symlink-installs the maps directory, so save the map, run `pixi run build` once to link it, then launch.
-
-**Semantic Phase 2 goals land in the wrong place.** The semantic map stores positions in the `map` frame of the Phase-1 SLAM session. Phase 2 must localize against the occupancy map saved from *that same session* (the default), not a different one; otherwise the origins disagree and goals are offset.
-
-**Gazebo hangs on startup or worlds load empty.** You're not in the pixi environment, so the activation script never ran. Use `pixi run <task>` (or `pixi shell` first).
-
----
-
-## Demo
-
-<!-- Drop screenshots / a screen recording here once captured. Suggestions:
-
-  ![Autonomous exploration in small_house](docs/media/exploration.gif)
-  Capture: `pixi run explore`, then screen-record the RViz window as the map fills in.
-
-  ![RRT planning a path](docs/media/rrt_path.png)
-  Capture: `pixi run bringup`, send a Nav2 Goal, screenshot the tree (blue) + path (green).
-
-  ![Natural-language navigation](docs/media/semantic_nav.gif)
-  Capture: `pixi run -e ai ai-navigation`, send "go to the chair", record the drive.
-
-To record a run for later playback: `ros2 bag record -a` while the stack is up. -->
-
-_Media to be added._
+- **Algorithm correctness, pure unit tests, no ROS.** `rrt_core` (grid conversions, inflation, paths around walls, determinism, RRT\* path quality) and the Python `semantic_store` / perception / mapping / reasoning logic all test as plain libraries: no graph, no simulator, no GPU.
+- **Single-node ROS behavior, scripted probes.** Publish a synthetic map + start + goal and assert a sensible path comes back; call `ComputePathToPose` and assert a non-empty path. These catch QoS, interface, and costmap-policy bugs without a simulator.
+- **Whole-system behavior, a headless sim run.** The exploration livelock and the SLAM/explorer parameter interaction only show up when the full stack runs end to end, so that's the level you run to trust the integration.
