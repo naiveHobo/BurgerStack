@@ -345,7 +345,11 @@
         <mass>0.035</mass>
       </inertial>
 
-      <pose>0.076 0.0 0.093 0 0 0</pose>
+      <!-- Camera tilted 15 deg upward (negative pitch about Y) so the RGB-D frame
+           lands on object-height content instead of floor. Must match the
+           camera_joint pitch in turtlebot3_burger_depth.urdf or the render
+           disagrees with the deprojection TF. -->
+      <pose>0.076 0.0 0.093 0 -0.2618 0</pose>
       <!-- RGB-D depth camera. A single type="depth" sensor renders both the colour
            image and an aligned depth image; libgazebo_ros_camera then publishes
            /camera/image_raw, /camera/camera_info, /camera/depth/image_raw,

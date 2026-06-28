@@ -192,7 +192,10 @@
   </link>
   
   <joint name="camera_joint" type="fixed">
-    <origin xyz="0.040 -0.000 0.110" rpy="0 0 0"/>
+    <!-- Camera tilted 15 deg upward (negative pitch about Y) so the RGB-D frame
+         lands on object-height content instead of floor. Must match the
+         camera_link pitch in model.sdf or deprojection TF disagrees with the render. -->
+    <origin xyz="0.040 -0.000 0.110" rpy="0 -0.2618 0"/>
     <parent link="base_link"/>
     <child link="camera_link"/>
   </joint>
