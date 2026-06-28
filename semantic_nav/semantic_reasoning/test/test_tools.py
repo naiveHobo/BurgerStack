@@ -3,7 +3,7 @@ from helpers import FakeToolContext
 
 from semantic_reasoning.tools import TOOL_SPECS, ToolRegistry
 
-TOOL_NAMES = {"query_semantic_map", "navigate_to_pose", "get_robot_pose"}
+TOOL_NAMES = {"query_semantic_map", "navigate_to_object", "navigate_to_pose", "get_robot_pose"}
 
 
 def test_tool_specs_cover_the_expected_tools():
@@ -57,6 +57,15 @@ def test_dispatch_navigate_passes_coordinates():
     name, kwargs = ctx.calls[-1]
     assert name == "navigate_to_pose"
     assert (kwargs["x"], kwargs["y"], kwargs["yaw"]) == (1.5, -0.5, 1.0)
+    assert out["success"] is True
+
+
+def test_dispatch_navigate_object_passes_coordinates_and_standoff():
+    ctx = FakeToolContext()
+    out = ToolRegistry().dispatch(ctx, "navigate_to_object", {"x": 2.0, "y": 3.0, "standoff": 0.5})
+    name, kwargs = ctx.calls[-1]
+    assert name == "navigate_to_object"
+    assert (kwargs["x"], kwargs["y"], kwargs["standoff"]) == (2.0, 3.0, 0.5)
     assert out["success"] is True
 
 

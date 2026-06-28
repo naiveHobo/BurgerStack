@@ -77,7 +77,7 @@ def test_mock_backend_queries_then_navigates_to_first_result():
     ctx = FakeToolContext(objects=[CHAIR])
     result = run_agent(MockAgentBackend(), ctx, "go to the chair")
     names = [c[0] for c in ctx.calls]
-    assert names == ["query_semantic_map", "navigate_to_pose"]
+    assert names == ["query_semantic_map", "navigate_to_object"]
     nav_kwargs = ctx.calls[1][1]
     assert (nav_kwargs["x"], nav_kwargs["y"]) == (1.0, 2.0)
     assert result.success is True
@@ -96,5 +96,5 @@ def test_mock_backend_reports_navigation_failure():
     ctx = FakeToolContext(objects=[CHAIR])
     ctx.fail_navigation = True
     result = run_agent(MockAgentBackend(), ctx, "go to the chair")
-    assert [c[0] for c in ctx.calls] == ["query_semantic_map", "navigate_to_pose"]
+    assert [c[0] for c in ctx.calls] == ["query_semantic_map", "navigate_to_object"]
     assert "could not reach" in result.summary.lower() or "not reach" in result.summary.lower()

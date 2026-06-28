@@ -28,6 +28,12 @@ class FakeToolContext(ToolContext):
             return {"success": False, "status": "aborted"}
         return {"success": True, "status": "succeeded"}
 
+    def navigate_to_object(self, x, y, standoff=0.0, frame="map"):
+        self.calls.append(("navigate_to_object", dict(x=x, y=y, standoff=standoff, frame=frame)))
+        if self.fail_navigation:
+            return {"success": False, "status": "aborted"}
+        return {"success": True, "status": "succeeded"}
+
     def get_robot_pose(self):
         self.calls.append(("get_robot_pose", {}))
         return self.pose
