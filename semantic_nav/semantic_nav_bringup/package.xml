@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>semantic_nav_bringup</name>
+  <version>0.1.0</version>
+  <description>
+    Integration/bringup for semantic_nav. Composes the existing BurgerStack stack
+    (sim + SLAM/AMCL + Nav2 + frontier explorer) with the semantic_nav nodes into a
+    two-phase demo: Phase 1 builds a spatial semantic map during exploration; the
+    handoff saves the occupancy + semantic maps; Phase 2 turns natural-language
+    commands into Nav2 goals over the saved maps. Launch/config/rviz only.
+  </description>
+  <maintainer email="sarthak@polybee.co">Sarthak Mittal</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>burger_bringup</exec_depend>
+  <exec_depend>semantic_perception</exec_depend>
+  <exec_depend>semantic_mapping</exec_depend>
+  <exec_depend>semantic_reasoning</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

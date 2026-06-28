@@ -1,0 +1,68 @@
+# Parameters for the semantic_nav nodes in the two-phase demo.
+# Mock backends everywhere -> the whole demo runs with no GPU/LLM/network. Flip the
+# `detector` / `describer` / `embedder` / `backend` values to the real backends (the
+# deferred backends pass) to upgrade in place with no launch changes.
+#
+# `embedding_dim` MUST match between mapping_node (embed_image at enrich time) and
+# map_server_node (embed_text at query time) so the mock vectors are comparable.
+# Path params use ~ and are expanduser-ed by the nodes.
+
+# --- Phase 1: perception -------------------------------------------------
+perception_node:
+  ros__parameters:
+    use_sim_time: true
+    detector: "mock"
+    target_frame: "map"
+    process_period_sec: 0.5
+    confidence_threshold: 0.3
+    depth_max: 8.0
+    publish_markers: true
+
+# --- Phase 1: semantic map builder ---------------------------------------
+mapping_node:
+  ros__parameters:
+    use_sim_time: true
+    map_frame: "map"
+    describer: "mock"
+    embedder: "mock"
+    embedding_dim: 64
+    region_eps: 1.5
+    assoc_radius: 0.5
+    map_output_path: "~/.semantic_nav/semantic_map.json"
+    publish_markers: true
+    publish_period_sec: 1.0
+
+# --- Phase 1: handoff orchestrator ---------------------------------------
+map_finalizer:
+  ros__parameters:
+    use_sim_time: true
+    semantic_map_path: "~/.semantic_nav/semantic_map.json"
+    occupancy_map_path: "~/.semantic_nav/occupancy_map"
+    build_service: "/mapping_node/build_semantic_map"
+    save_map_service: "/map_saver/save_map"
+    map_topic: "/map"
+    completion_topic: "/exploration_complete"
+    auto_finalize: false
+
+# --- Phase 2: semantic map server ----------------------------------------
+map_server_node:
+  ros__parameters:
+    use_sim_time: true
+    map_frame: "map"
+    embedder: "mock"
+    embedding_dim: 64
+    map_path: "~/.semantic_nav/semantic_map.json"
+    publish_markers: true
+    default_top_k: 10
+
+# --- Phase 2: agentic reasoning ------------------------------------------
+execute_task_node:
+  ros__parameters:
+    use_sim_time: true
+    backend: "mock"
+    query_service: "/map_server_node/query_semantic_map"
+    nav_action: "/navigate_to_pose"
+    map_frame: "map"
+    robot_base_frame: "base_link"
+    nav_timeout_sec: 120.0
+    max_steps: 8
