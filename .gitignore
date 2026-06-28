@@ -1,7 +1,10 @@
 .idea/
 cmake-build-debug/
 __pycache__/
+.pytest_cache/
 
 # pixi's conda env now lives next to this manifest. The colcon build artifacts
 # (build/ install/ log/) stay in the workspace root two levels up, outside the repo.
 .pixi/
+
+weights/

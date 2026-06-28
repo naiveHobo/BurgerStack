@@ -46,31 +46,99 @@ ROS_DOMAIN_ID = "0"
 [activation]
 scripts = ["scripts/pixi_activate.sh"]
 
+# =====================================================================================
+# TWO ENVIRONMENTS, TWO INSTALL TREES — the rule that prevents the build/run mismatch:
+#
+#   * default env  ->  builds & runs from   install/      (lite: ROS only, mock backends)
+#   * ai env       ->  builds & runs from   install_ai/   (adds CUDA torch / YOLO / CLIP)
+#
+# colcon bakes the *building* env's python into each node's console-script shebang, and ROS
+# (`source <tree>/setup.bash` + `ros2 run`) resolves ONE binary regardless of the active env.
+# So a single shared install/ tree run under the "other" env loads the wrong interpreter (e.g.
+# the default python importing the ai env's torch -> `libmkl_intel_lp64.so.3` not found, node
+# dies before logging). Giving each env its OWN tree means a node is always launched by the
+# very interpreter that built it. Each env's build task targets its own tree; each env's run
+# tasks source their own tree; the trees never cross. (build_ai/ and install_ai/ live next to
+# build/ and install/ under $COLCON_WS, outside the git repo.)
+# =====================================================================================
+
 [tasks]
+# --- default (lite) env: builds & runs from install/ ---
 build = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && colcon build --symlink-install --event-handlers console_cohesion+'"
 rebuild = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && rm -rf build install log && colcon build --symlink-install'"
 test = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && colcon test --event-handlers console_direct+ && colcon test-result --verbose'"
 bringup = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && ros2 launch burger_bringup bringup.launch.py'"
-# AWS/OSRF ServiceSim office world (camera burger). Gazebo + robot only:
-sim-office = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup sim.launch.py world:=office'"
-# Full office stack: Gazebo + SLAM + Nav2 + RViz. SLAM/Nav2 auto-start once the
-# robot publishes /scan (no hand-tuned delay needed, even for this heavy world).
-office = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office'"
+# Vendored worlds (RGB-D camera burger), Gazebo + robot only. small_house is the default
+# world for the full-stack tasks below; these two select a world explicitly. Office passes
+# its own spawn pose (the launch x_pose/y_pose defaults track small_house):
+sim-small-house = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup sim.launch.py world:=small_house'"
+sim-office = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup sim.launch.py world:=office x_pose:=-6.0 y_pose:=8.0'"
 
-# --- Autonomous frontier exploration (office world): full stack + explorer.
+# --- Autonomous frontier exploration (default world: small_house): full stack + explorer.
 # The explorer starts once Nav2 is up; tuned params live in params/exploration.yaml.
-explore = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office explore:=true'"
+explore = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py explore:=true'"
 
 # --- Resume: continue mapping on the saved map (maps/map) while still exploring new areas.
-explore-resume = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office explore:=true slam_mode:=continue'"
+explore-resume = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py explore:=true slam_mode:=continue'"
 
-# --- Localization only via AMCL + map_server (no exploration). AMCL is seeded at the office
-# spawn so it converges without a manual RViz pose. Send goals with RViz's 'Nav2 Goal' tool.
+# --- Localization only via AMCL + map_server (no exploration). AMCL is seeded at the
+# (small_house) spawn so it converges without a manual RViz pose. Send goals with RViz's
+# 'Nav2 Goal' tool.
 # `localize` uses YOUR saved map (maps/map.yaml, from map_saver during exploration):
-localize = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office localizer:=amcl map_yaml:=$(ros2 pkg prefix burger_bringup)/share/burger_bringup/maps/map.yaml'"
-# `localize-gt` uses the bundled GROUND-TRUTH map (maps/map_gt.yaml, the launch default):
-localize-gt = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py world:=office localizer:=amcl'"
+localize = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py localizer:=amcl map_yaml:=$(ros2 pkg prefix burger_bringup)/share/burger_bringup/maps/map.yaml'"
+# `localize-gt` uses the vendored small_house occupancy map (prebuilt, ships in burger_worlds):
+localize-gt = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup bringup.launch.py localizer:=amcl map_yaml:=$(ros2 pkg prefix burger_worlds)/share/burger_worlds/worlds/small_house/map/map.yaml'"
 
 # --- Optional: frontier debug overlays (raw/optimized frontiers, MRTSP scores) for tuning.
 # Run alongside `pixi run explore`.
 explore-debug = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch frontier_exploration_ros2 frontier_debug.launch.py params_file:=$(ros2 pkg prefix burger_bringup)/share/burger_bringup/params/exploration.yaml use_sim_time:=true'"
+
+# =====================================================================================
+# Optional real AI backends for semantic_nav (the deferred-backends pass).
+#
+# These heavy GPU/ML deps live behind a FEATURE so the default env + CI stay mock-only and
+# GPU/network-free. A pixi environment implicitly includes the `default` feature, so the `ai`
+# environment below has BOTH all of ROS Humble AND these libs in one interpreter — the nodes
+# can `import rclpy` and `import torch/ultralytics/...` together. Nothing in `default` changes.
+#
+#   pixi install -e ai            # solve + fetch (LARGE: CUDA pytorch ~GB) — one time
+#   pixi run -e ai ai-build       # build the workspace into install_ai/ (ai-env shebangs)
+#   pixi run -e ai ai-navigation  # Phase 2 with real backends (see tasks below)
+#
+# conda-forge `pytorch-gpu`, NEVER pip torch: pip CUDA wheels are built against the PyPI ABI
+# and clash with the RoboStack conda toolchain (libstdc++ / CUDA-runtime conflicts).
+# Tell the solver this env targets a CUDA 12 host (RTX 4060) so it injects the `__cuda`
+# virtual package and `pytorch-gpu` resolves. Scoped to the `ai` feature only — the default
+# env is unaffected. On a host without an NVIDIA GPU, drop this and swap pytorch-gpu->pytorch.
+[feature.ai.system-requirements]
+cuda = "12"
+
+[feature.ai.dependencies]
+pytorch-gpu = "*"        # CLIP + YOLO-World backbone (CUDA build matched to RoboStack)
+ultralytics = "*"        # YOLO-World open-vocab detector
+open-clip-torch = "*"    # CLIP image/text embeddings (import name: open_clip)
+ollama-python = "*"      # ollama HTTP client (import name: ollama) — talks to the server
+# NOTE: the ollama SERVER binary is NOT here on purpose. conda-forge's GPU ollama build
+# requires `cuda-version >=13`, which (since cuda-version is env-wide) would drag the whole
+# env — including pytorch — onto CUDA 13 and force a multi-GB torch re-download. Install the
+# server out-of-band instead (official installer, GPU via its own bundled runners):
+#   curl -fsSL https://ollama.com/install.sh | sh   # then: ollama serve & ollama pull ...
+mcp = "*"                # Model Context Protocol SDK (the Claude frontend)
+
+[environments]
+ai = { features = ["ai"], solve-group = "ai" }
+
+# Convenience tasks, available only in the `ai` env. They build into / source install_ai/ (NOT
+# install/) so the ai-env shebangs never land in the default env's tree — see the two-tree note
+# above. Run them with `pixi run -e ai <task>`. The GUI tasks launch with rviz:=true, which
+# shows the semantic RViz view (map + detection markers + camera) as the SINGLE window — it
+# forwards use_rviz:=false to burger_bringup so the planner.rviz isn't also opened.
+# The ollama SERVER is separate from the python client: install it with the official installer
+# (curl -fsSL https://ollama.com/install.sh | sh), then `ollama pull qwen2.5:7b moondream` once
+# before the real run. (Avoid conda-forge's GPU ollama — see the dependencies note above.)
+[feature.ai.tasks]
+ai-build = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && colcon --log-base log_ai build --symlink-install --build-base build_ai --install-base install_ai'"
+ai-rebuild = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && rm -rf build_ai install_ai log_ai && colcon --log-base log_ai build --symlink-install --build-base build_ai --install-base install_ai'"
+ai-mapping = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && if [ ! -f install_ai/setup.bash ]; then echo Build the ai tree first: pixi run -e ai ai-build; exit 1; fi; source install_ai/setup.bash && ros2 launch semantic_nav_bringup semantic_mapping.launch.py rviz:=true params_file:=$(ros2 pkg prefix semantic_nav_bringup)/share/semantic_nav_bringup/params/semantic_nav_real.yaml'"
+ai-navigation = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && if [ ! -f install_ai/setup.bash ]; then echo Build the ai tree first: pixi run -e ai ai-build; exit 1; fi; source install_ai/setup.bash && ros2 launch semantic_nav_bringup semantic_navigation.launch.py rviz:=true params_file:=$(ros2 pkg prefix semantic_nav_bringup)/share/semantic_nav_bringup/params/semantic_nav_real.yaml'"
+mcp-server = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && if [ ! -f install_ai/setup.bash ]; then echo Build the ai tree first: pixi run -e ai ai-build; exit 1; fi; source install_ai/setup.bash && ros2 run semantic_reasoning mcp_server'"
