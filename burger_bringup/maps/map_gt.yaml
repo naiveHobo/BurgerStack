@@ -1,11 +1,11 @@
-# Ground-truth office occupancy map, copied from
-# burger_worlds/worlds/office/map/{map.png,map.yaml}. Used by the AMCL localization
-# path (map_server + amcl); nav2 map_server format (image + yaml), NOT a slam_toolbox
-# pose-graph. The map frame is aligned to the Gazebo world frame, so the robot's world
-# spawn pose (office: -6, 8) is also its pose in this map.
-image: map_gt.png
+# Ground-truth small_house occupancy map, copied from
+# burger_worlds/worlds/small_house/map/{map.pgm,map.yaml}. Used by the AMCL localization
+# path (map_server + amcl) as the default GT map; nav2 map_server format (image + yaml),
+# NOT a slam_toolbox pose-graph. The map frame is aligned to the Gazebo world frame, so the
+# robot's world spawn pose (small_house: -3.5, -4.5) is also its pose in this map.
+image: map_gt.pgm
 resolution: 0.05
-origin: [-30.0, -30.0, 0.0]
-occupied_thresh: 0.7
-free_thresh: 0.1
+origin: [-10.0, -10.0, 0.0]
+occupied_thresh: 0.65
+free_thresh: 0.196
 negate: 0
