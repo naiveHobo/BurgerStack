@@ -20,9 +20,15 @@ DEFAULT_SYSTEM_PROMPT = (
     "You are the navigation brain of a mobile robot. You have a spatial semantic map "
     "of the environment built during exploration. Use the provided tools to find "
     "objects in the map and drive the robot to them. Think step by step: query the "
-    "map to locate the relevant object, then navigate to its position. When the task "
-    "is complete, reply with a short natural-language summary of what you did."
+    "map to locate the relevant object, then call navigate_to_object with that object's "
+    "map-frame position to approach it — the robot stops a safe distance away and faces "
+    "it, so never aim a goal at the object's exact cell. Use navigate_to_pose only for "
+    "explicit free-space coordinates. When the task is complete, reply with a short "
+    "natural-language summary of what you did."
 )
+
+# Tool names that move the robot toward a goal (for feedback labelling).
+_NAV_TOOLS = ("navigate_to_pose", "navigate_to_object")
 
 # A feedback sink: (status, reasoning_step, goal) where goal is (x, y, yaw) | None.
 FeedbackFn = Callable[[str, str, Optional[tuple]], None]
@@ -60,7 +66,7 @@ class AgentBackend(ABC):
 
 
 def _goal_of(call: ToolCall) -> Optional[tuple]:
-    if call.name != "navigate_to_pose":
+    if call.name not in _NAV_TOOLS:
         return None
     a = call.arguments
     return (float(a.get("x", 0.0)), float(a.get("y", 0.0)), float(a.get("yaw", 0.0)))
@@ -98,7 +104,7 @@ def run_agent(
                            for c in turn.tool_calls],
         })
         for call in turn.tool_calls:
-            status = "navigating" if call.name == "navigate_to_pose" else "reasoning"
+            status = "navigating" if call.name in _NAV_TOOLS else "reasoning"
             if feedback is not None:
                 feedback(status, f"{call.name}({call.arguments})", _goal_of(call))
             result = registry.dispatch(ctx, call.name, call.arguments)
@@ -129,11 +135,11 @@ class MockAgentBackend(AgentBackend):
 
         target = objects[0]
         label = target.get("label", "target")
-        if "navigate_to_pose" not in results:
+        if "navigate_to_object" not in results:
             pos = target.get("position", {})
             return AssistantTurn(tool_calls=[ToolCall(
-                "n1", "navigate_to_pose", {"x": pos.get("x", 0.0), "y": pos.get("y", 0.0)})])
+                "n1", "navigate_to_object", {"x": pos.get("x", 0.0), "y": pos.get("y", 0.0)})])
 
-        if results["navigate_to_pose"].get("success"):
+        if results["navigate_to_object"].get("success"):
             return AssistantTurn(content=f"Arrived at the {label}.")
         return AssistantTurn(content=f"I found the {label} but could not reach it.")

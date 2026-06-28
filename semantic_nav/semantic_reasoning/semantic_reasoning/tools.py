@@ -30,6 +30,11 @@ class ToolContext(ABC):
         ...
 
     @abstractmethod
+    def navigate_to_object(self, x: float, y: float, standoff: float = 0.0,
+                           frame: str = "map") -> dict:
+        ...
+
+    @abstractmethod
     def get_robot_pose(self) -> Optional[dict]:
         ...
 
@@ -70,6 +75,14 @@ def _h_navigate(ctx: ToolContext, args: dict) -> dict:
     )
 
 
+def _h_navigate_object(ctx: ToolContext, args: dict) -> dict:
+    return ctx.navigate_to_object(
+        x=float(args["x"]), y=float(args["y"]),
+        standoff=float(args.get("standoff", 0.0) or 0.0),
+        frame=args.get("frame", "map"),
+    )
+
+
 def _h_get_pose(ctx: ToolContext, args: dict) -> dict:
     return {"pose": ctx.get_robot_pose()}
 
@@ -102,10 +115,32 @@ TOOL_SPECS: List[ToolSpec] = [
         handler=_h_query,
     ),
     ToolSpec(
+        name="navigate_to_object",
+        description=(
+            "Drive the robot to a mapped object given the object's own map-frame position "
+            "(e.g. straight from a query result). Use this for 'go to the <object>' tasks: "
+            "the robot stops a short, safe distance away and faces the object instead of "
+            "driving into it (an object's exact cell is an obstacle Nav2 cannot enter). "
+            "Blocks until navigation finishes and reports whether it arrived."),
+        parameters={
+            "type": "object",
+            "properties": {
+                "x": {"type": "number", "description": "object x in the map frame (m)"},
+                "y": {"type": "number", "description": "object y in the map frame (m)"},
+                "standoff": {"type": "number",
+                             "description": "stop distance from the object (m); 0 = node default"},
+            },
+            "required": ["x", "y"],
+        },
+        handler=_h_navigate_object,
+    ),
+    ToolSpec(
         name="navigate_to_pose",
         description=(
-            "Drive the robot to a goal pose in the map frame using Nav2. Blocks until "
-            "navigation finishes and reports whether the goal was reached."),
+            "Drive the robot to an explicit free-space goal pose in the map frame using "
+            "Nav2. Use this only for bare coordinates; to approach a mapped object use "
+            "navigate_to_object instead. Blocks until navigation finishes and reports "
+            "whether the goal was reached."),
         parameters={
             "type": "object",
             "properties": {

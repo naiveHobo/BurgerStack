@@ -19,6 +19,7 @@ from rclpy.time import Time
 from nav2_msgs.action import NavigateToPose
 from semantic_nav_msgs.srv import QuerySemanticMap
 
+from semantic_reasoning.geometry import choose_approach_pose, is_free_in_grid
 from semantic_reasoning.tools import ToolContext
 
 _STATUS_NAMES = {
@@ -40,7 +41,8 @@ def _quat_to_yaw(q) -> float:
 class RobotTools(ToolContext):
     def __init__(self, node, *, query_client, nav_client, tf_buffer, goal_handle,
                  map_frame="map", robot_base_frame="base_link",
-                 query_timeout=5.0, nav_timeout=120.0, feedback_fn=None):
+                 query_timeout=5.0, nav_timeout=120.0, feedback_fn=None,
+                 approach_standoff=0.6, costmap_getter=None, costmap_free_threshold=99):
         self.node = node
         self.query_client = query_client
         self.nav_client = nav_client
@@ -51,6 +53,9 @@ class RobotTools(ToolContext):
         self.query_timeout = float(query_timeout)
         self.nav_timeout = float(nav_timeout)
         self.feedback_fn = feedback_fn
+        self.approach_standoff = float(approach_standoff)
+        self.costmap_getter = costmap_getter            # () -> nav_msgs/OccupancyGrid | None
+        self.costmap_free_threshold = int(costmap_free_threshold)
         self._lock = threading.Lock()
         self._active_nav = None
 
@@ -124,6 +129,39 @@ class RobotTools(ToolContext):
                 self._active_nav = None
         return {"success": status == GoalStatus.STATUS_SUCCEEDED,
                 "status": _STATUS_NAMES.get(status, "unknown")}
+
+    # --- ToolContext: navigate to a mapped object (standoff approach) -----
+
+    def navigate_to_object(self, x, y, standoff=0.0, frame="map"):
+        sd = float(standoff) or self.approach_standoff
+        robot = self.get_robot_pose()
+        if robot is None:
+            # No localization yet: can't pick an approach direction. Fall back to the
+            # raw object pose (planner may still reject it, but it's the best we can do).
+            self.node.get_logger().warn(
+                "navigate_to_object: robot pose unavailable; using object position")
+            return self.navigate_to_pose(x, y, 0.0, frame)
+        px, py, yaw = choose_approach_pose(
+            float(x), float(y), robot["x"], robot["y"], sd,
+            is_free=self._make_costmap_check())
+        self.node.get_logger().info(
+            f"navigate_to_object: object=({x:.2f},{y:.2f}) -> approach=({px:.2f},{py:.2f}) "
+            f"standoff={sd:.2f}m")
+        return self.navigate_to_pose(px, py, yaw, frame)
+
+    def _make_costmap_check(self):
+        """A free-cell predicate over the latest global costmap, or None if unavailable."""
+        grid = self.costmap_getter() if self.costmap_getter is not None else None
+        if grid is None:
+            return None
+        info, data, thr = grid.info, grid.data, self.costmap_free_threshold
+
+        def is_free(wx, wy):
+            return is_free_in_grid(
+                info.origin.position.x, info.origin.position.y, info.resolution,
+                info.width, info.height, data, wx, wy, thr)
+
+        return is_free
 
     def _await_nav_result(self, gh) -> int:
         """Wait for the nav result, polling so cancel/timeout stay responsive."""

@@ -16,12 +16,14 @@ from __future__ import annotations
 import rclpy
 import tf2_ros
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import OccupancyGrid
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.action.server import ServerGoalHandle
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.action import ActionClient
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 from nav2_msgs.action import NavigateToPose
 from semantic_nav_msgs.action import ExecuteTask
@@ -46,6 +48,9 @@ class ExecuteTaskNode(Node):
         self.declare_parameter("system_prompt", DEFAULT_SYSTEM_PROMPT)
         self.declare_parameter("ollama_model", "qwen2.5:7b")
         self.declare_parameter("ollama_host", "http://localhost:11434")
+        self.declare_parameter("approach_standoff_m", 0.6)
+        self.declare_parameter("costmap_topic", "/global_costmap/costmap")
+        self.declare_parameter("costmap_free_threshold", 99)
 
         g = lambda n: self.get_parameter(n).value  # noqa: E731
         self.map_frame = g("map_frame")
@@ -54,6 +59,8 @@ class ExecuteTaskNode(Node):
         self.nav_timeout = float(g("nav_timeout_sec"))
         self.max_steps = int(g("max_steps"))
         self.system_prompt = g("system_prompt")
+        self.approach_standoff = float(g("approach_standoff_m"))
+        self.costmap_free_threshold = int(g("costmap_free_threshold"))
 
         self.backend = self._make_backend(g("backend"))
 
@@ -67,6 +74,17 @@ class ExecuteTaskNode(Node):
         self.nav_client = ActionClient(
             self, NavigateToPose, g("nav_action"), callback_group=self.cb)
 
+        # Latest global costmap, used to validate/repair object approach poses. Nav2
+        # publishes it latched (transient_local), so match that to get the current map.
+        self._costmap = None
+        costmap_qos = QoSProfile(
+            depth=1, history=HistoryPolicy.KEEP_LAST,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.create_subscription(
+            OccupancyGrid, g("costmap_topic"), self._on_costmap, costmap_qos,
+            callback_group=self.cb)
+
         self.action_server = ActionServer(
             self, ExecuteTask, "~/execute_task",
             execute_callback=self._execute,
@@ -77,6 +95,9 @@ class ExecuteTaskNode(Node):
         self.get_logger().info(
             f"execute_task_node up: backend={g('backend')}, "
             f"query_service={g('query_service')}, nav_action={g('nav_action')}")
+
+    def _on_costmap(self, msg: OccupancyGrid):
+        self._costmap = msg
 
     def _make_backend(self, name):
         if name == "mock":
@@ -114,7 +135,10 @@ class ExecuteTaskNode(Node):
             tf_buffer=self.tf_buffer, goal_handle=goal_handle,
             map_frame=self.map_frame, robot_base_frame=self.robot_base_frame,
             query_timeout=self.query_timeout, nav_timeout=self.nav_timeout,
-            feedback_fn=feedback_fn)
+            feedback_fn=feedback_fn,
+            approach_standoff=self.approach_standoff,
+            costmap_getter=lambda: self._costmap,
+            costmap_free_threshold=self.costmap_free_threshold)
 
         result = run_agent(
             self.backend, ctx, command,
