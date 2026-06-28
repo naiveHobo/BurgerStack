@@ -49,6 +49,7 @@ def generate_launch_description():
     y_pose = LaunchConfiguration("y_pose")
     localizer = LaunchConfiguration("localizer")
     map_yaml = LaunchConfiguration("map_yaml")
+    use_rviz = LaunchConfiguration("use_rviz")
     ready_topic = LaunchConfiguration("ready_topic")
     ready_timeout = LaunchConfiguration("ready_timeout")
     explore = LaunchConfiguration("explore")
@@ -75,6 +76,7 @@ def generate_launch_description():
             "y_pose": y_pose,
             "localizer": localizer,
             "map_yaml": map_yaml,
+            "use_rviz": use_rviz,
         }.items(),
     )
 
@@ -134,8 +136,9 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument(
-            "world", default_value="world",
-            description="Gazebo world: 'office' (AWS/OSRF ServiceSim), 'house' or 'world'."),
+            "world", default_value="small_house",
+            description="Gazebo world: 'small_house' (vendored AWS residential house, default), "
+                        "'office' (AWS/OSRF ServiceSim), 'house' or 'world'."),
         DeclareLaunchArgument("use_sim_time", default_value="true"),
         DeclareLaunchArgument(
             "slam_mode", default_value="mapping",
@@ -146,13 +149,15 @@ def generate_launch_description():
             description="Serialized pose-graph base name (no extension) for the "
                         "continue/localization slam_mode."),
         DeclareLaunchArgument(
-            "x_pose", default_value="-6.0",
-            description="Robot spawn X (office default). Used for spawning AND as the "
-                        "slam map_start_pose for continue/localization -- keep them equal."),
+            "x_pose", default_value="-3.5",
+            description="Robot spawn X (small_house default; office tasks override to -6.0). "
+                        "Used for spawning AND as the slam map_start_pose for "
+                        "continue/localization -- keep them equal."),
         DeclareLaunchArgument(
-            "y_pose", default_value="8.0",
-            description="Robot spawn Y (office default). Used for spawning AND as the "
-                        "slam map_start_pose for continue/localization -- keep them equal."),
+            "y_pose", default_value="-4.5",
+            description="Robot spawn Y (small_house default; office tasks override to 8.0). "
+                        "Used for spawning AND as the slam map_start_pose for "
+                        "continue/localization -- keep them equal."),
         DeclareLaunchArgument(
             "localizer", default_value="slam_toolbox",
             description="Backend: slam_toolbox (mapping/continue) | amcl (localization-only "
@@ -161,6 +166,10 @@ def generate_launch_description():
             "map_yaml", default_value=os.path.join(
                 get_package_share_directory("burger_bringup"), "maps", "map_gt.yaml"),
             description="Occupancy-grid map yaml for localizer:=amcl (default ground-truth map_gt.yaml)."),
+        DeclareLaunchArgument(
+            "use_rviz", default_value="true",
+            description="Start the bundled planner RViz (from nav2.launch.py). Set false to run "
+                        "headless or when a caller opens its own RViz view."),
         DeclareLaunchArgument(
             "ready_topic", default_value="/scan",
             description="Topic whose first message gates SLAM/Nav2 startup."),

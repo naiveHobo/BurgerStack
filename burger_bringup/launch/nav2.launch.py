@@ -25,6 +25,7 @@ def generate_launch_description():
     y_pose = LaunchConfiguration("y_pose")
     localizer = LaunchConfiguration("localizer")
     map_yaml = LaunchConfiguration("map_yaml")
+    use_rviz = LaunchConfiguration("use_rviz")
 
     nav2_params = os.path.join(bringup, "params", "nav2.yaml")
     rviz_config = os.path.join(bringup, "rviz", "planner.rviz")
@@ -57,6 +58,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "map_yaml", default_value=default_map_yaml,
             description="Occupancy-grid map yaml for localizer:=amcl (e.g. ground-truth map_gt.yaml)."),
+        DeclareLaunchArgument(
+            "use_rviz", default_value="true",
+            description="Start RViz with the planner config. Set false to suppress it "
+                        "(e.g. when a caller opens its own RViz view)."),
 
         # slam_toolbox backend (mapping / continue / localization) -- unless AMCL is selected.
         IncludeLaunchDescription(
@@ -99,6 +104,7 @@ def generate_launch_description():
             name="rviz2",
             arguments=["-d", rviz_config],
             parameters=[{"use_sim_time": use_sim_time}],
+            condition=IfCondition(use_rviz),
             output="log",
         ),
     ])
