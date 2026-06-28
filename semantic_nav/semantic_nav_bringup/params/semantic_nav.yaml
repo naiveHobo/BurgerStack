@@ -71,3 +71,9 @@ execute_task_node:
     robot_base_frame: "base_link"
     nav_timeout_sec: 120.0
     max_steps: 8
+    # navigate_to_object: stop this far from the object and face it (its exact cell is a
+    # costmap obstacle Nav2 can't enter). costmap_topic validates/repairs the approach
+    # pose; free_threshold matches the planner's lethal cost on the 0-100 OccupancyGrid.
+    approach_standoff_m: 0.6
+    costmap_topic: "/global_costmap/costmap"
+    costmap_free_threshold: 99
