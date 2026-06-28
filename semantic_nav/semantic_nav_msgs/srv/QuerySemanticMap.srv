@@ -1,0 +1,12 @@
+# Query the spatial semantic map. Any combination of filters may be set;
+# empty strings, a zero radius, and top_k == 0 are treated as "unset".
+# Results are returned ranked best-first.
+
+string text_query          # free-text / open-vocabulary query (optional)
+string label               # exact or fuzzy label filter (optional)
+string region              # restrict to a region / room (optional)
+geometry_msgs/Point near   # spatial proximity center, map frame (optional)
+float32 radius             # only return objects within this radius of `near` (m); 0 = ignore
+uint16 top_k               # maximum number of results; 0 = node default
+---
+SemanticObject[] results   # ranked best-first

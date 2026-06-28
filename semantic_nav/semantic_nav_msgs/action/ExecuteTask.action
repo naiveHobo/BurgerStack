@@ -1,0 +1,12 @@
+# Execute a natural-language navigation / task command via the agentic reasoner.
+# This is the ROS-native entry point used by the offline (ollama) frontend; the
+# MCP frontend drives the same underlying tools without going through this action.
+
+string command                       # natural-language command, e.g. "go to the kitchen"
+---
+bool success
+string summary                       # human-readable outcome
+---
+string status                        # high-level phase, e.g. "reasoning", "navigating"
+string reasoning_step                # current agent thought / tool invocation (trace)
+geometry_msgs/PoseStamped current_goal

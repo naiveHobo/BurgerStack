@@ -1,0 +1,8 @@
+# Trigger the batch enrichment + consolidation pass over buffered observations
+# and persist the resulting semantic map to disk.
+
+string output_path         # destination path/stem; empty = use the node default
+---
+bool success
+uint32 object_count        # number of consolidated entities written
+string path                # actual path/stem written
