@@ -29,7 +29,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     bringup_dir = get_package_share_directory("burger_bringup")
     default_params = PathJoinSubstitution(
-        [FindPackageShare("semantic_nav_bringup"), "params", "semantic_nav.yaml"])
+        [FindPackageShare("semantic_nav_bringup"), "params", "semantic_nav_mock.yaml"])
     rviz_config = PathJoinSubstitution(
         [FindPackageShare("semantic_nav_bringup"), "rviz", "semantic_nav.rviz"])
 

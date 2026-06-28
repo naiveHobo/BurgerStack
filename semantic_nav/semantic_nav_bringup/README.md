@@ -69,7 +69,7 @@ ground-truth `map_gt.yaml`) shifts the origin and goals will be misplaced.
 The demo is mock-first. The real AI backends — YOLO-World detection, an ollama VLM
 describer, CLIP embeddings, and an ollama tool-calling agent — slot in behind the same
 interfaces with **no launch changes**: just pass the ready-made real-params overlay,
-`params/semantic_nav_real.yaml` (it flips `detector: yolo_world`,
+`params/semantic_nav.yaml` (it flips `detector: yolo_world`,
 `describer: ollama` / `embedder: clip`, `map_server_node.embedder: clip`, and
 `execute_task_node.backend: ollama`).
 
@@ -103,7 +103,7 @@ ollama pull moondream       # Phase-1 VLM crop describer
 ```bash
 pixi run -e ai ai-mapping      # Phase 1 with real perception + enrichment
 pixi run -e ai ai-navigation   # Phase 2 with CLIP queries + the ollama agent
-# equivalently, any launch with: params_file:=<.../params/semantic_nav_real.yaml>
+# equivalently, any launch with: params_file:=<.../params/semantic_nav.yaml>
 ```
 
 > **CLIP dim note:** with `embedder: clip` the `embedding_dim` param is ignored — the CLIP
