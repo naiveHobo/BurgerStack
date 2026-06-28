@@ -68,6 +68,11 @@ build = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && colcon build 
 rebuild = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && rm -rf build install log && colcon build --symlink-install'"
 test = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && colcon test --event-handlers console_direct+ && colcon test-result --verbose'"
 bringup = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && ros2 launch burger_bringup bringup.launch.py'"
+# --- Standalone RRT planner demo on the saved occupancy map (no Gazebo): map_server + the
+# rrt_planner_node + RViz. Set a goal with RViz's '2D Goal Pose' tool; the search tree
+# (/rrt_tree) and path (/rrt_path) are drawn by planner.rviz. This is the Section 3
+# "occupancy grid + start + goal -> nav_msgs/Path" demo, isolated from the full stack.
+plan-demo = "bash -c 'cd \"${COLCON_WS:-$PIXI_PROJECT_ROOT/../..}\" && source install/setup.bash && ros2 launch burger_bringup plan_demo.launch.py'"
 # Vendored worlds (RGB-D camera burger), Gazebo + robot only. small_house is the default
 # world for the full-stack tasks below; these two select a world explicitly. Office passes
 # its own spawn pose (the launch x_pose/y_pose defaults track small_house):

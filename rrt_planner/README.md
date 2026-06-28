@@ -71,8 +71,23 @@ All parameters are namespaced under the planner's name (e.g. `GridBased.step_siz
 
 ### Usage
 
+Run it bare against whatever is publishing `/map`:
+
 ```bash
 ros2 run rrt_planner rrt_planner_node
+```
+
+Or use the one-command demo that serves the saved occupancy map and opens RViz with the right config (the Section-3 "grid + start + goal → path" demo, no Gazebo):
+
+```bash
+pixi run plan-demo        # = ros2 launch burger_bringup plan_demo.launch.py
+```
+
+Then send a goal with RViz's *2D Goal Pose* tool. Set the start by publishing a `PoseStamped` on `/initialpose` (RViz's *2D Pose Estimate* publishes a `PoseWithCovarianceStamped`, a different type, so it won't set this node's start):
+
+```bash
+ros2 topic pub --once /initialpose geometry_msgs/msg/PoseStamped \
+    '{header: {frame_id: map}, pose: {position: {x: 0.0, y: 10.0}}}'
 ```
 
 ### Topics
