@@ -5,12 +5,16 @@
   <version>0.1.0</version>
   <description>
     Vendored Gazebo Classic simulation worlds for the TurtleBot3 Burger stack.
-    Currently ships the AWS RoboMaker / OSRF ServiceSim "office" world
-    (worlds/office/service.world) plus its models, media and a reference map.
-    Loaded via burger_bringup's sim.launch.py with world:=office.
+    Ships two AWS RoboMaker worlds plus their models and reference maps:
+    "small_house" (worlds/small_house/small_house.world, the default residential world)
+    and "office" (worlds/office/service.world, AWS RoboMaker / OSRF ServiceSim).
+    Loaded via burger_bringup's sim.launch.py (world:=small_house | office).
   </description>
   <maintainer email="sarthakmittal2608@gmail.com">Sarthak Mittal</maintainer>
+  <!-- Mixed: office assets are Apache-2.0 (OSRF ServiceSim); small_house assets are MIT
+       (AWS RoboMaker Small House world). See README "Provenance & license". -->
   <license>Apache-2.0</license>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
